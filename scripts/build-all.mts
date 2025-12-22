@@ -16,12 +16,15 @@ const SRC_DIR = path.join(WIDGETS_DIR, 'src');
 const ASSETS_DIR = path.resolve('assets');
 const GLOBAL_CSS = path.join(SRC_DIR, 'index.css');
 
+// Check for watch mode
+const WATCH_MODE = process.argv.includes('--watch');
+
 // Determine build concurrency from environment or CPU count
 const BUILD_CONCURRENCY =
   parseInt(process.env.BUILD_CONCURRENCY || '', 10) ||
   Math.max(1, Math.floor(os.cpus().length / 2));
 
-console.log(`\nBuilding widgets with concurrency: ${BUILD_CONCURRENCY}\n`);
+console.log(`\n${WATCH_MODE ? 'Watching' : 'Building'} widgets with concurrency: ${BUILD_CONCURRENCY}\n`);
 
 /**
  * Virtual CSS bundler plugin
@@ -92,9 +95,11 @@ async function buildWidget(entryPath: string): Promise<{ name: string; jsPath: s
       cssInjectionPlugin(virtualId, entryAbs, cssToInclude),
       tailwindcss(),
       react(),
-      // Production compression
-      compression({ algorithm: 'gzip', ext: '.gz' }),
-      compression({ algorithm: 'brotliCompress', ext: '.br' }),
+      // Production compression (skip in watch mode for speed)
+      ...(WATCH_MODE ? [] : [
+        compression({ algorithm: 'gzip', ext: '.gz' }),
+        compression({ algorithm: 'brotliCompress', ext: '.br' }),
+      ]),
     ],
     esbuild: {
       jsx: 'automatic',
@@ -105,8 +110,9 @@ async function buildWidget(entryPath: string): Promise<{ name: string; jsPath: s
       target: 'es2023',
       outDir: ASSETS_DIR,
       emptyOutDir: false,
-      minify: 'esbuild',
+      minify: WATCH_MODE ? false : 'esbuild',
       cssCodeSplit: false,
+      watch: WATCH_MODE ? {} : null,
       rollupOptions: {
         input: virtualId,
         output: {
@@ -118,13 +124,13 @@ async function buildWidget(entryPath: string): Promise<{ name: string; jsPath: s
               : `[name]-[hash][extname]`,
         },
         preserveEntrySignatures: 'allow-extension',
-        treeshake: true,
+        treeshake: !WATCH_MODE,
       },
     },
-    logLevel: 'warn',
+    logLevel: WATCH_MODE ? 'info' : 'warn',
   };
 
-  await build(config);
+  const result = await build(config);
 
   const jsPath = path.join(ASSETS_DIR, `${name}.js`);
   const cssPath = path.join(ASSETS_DIR, `${name}.css`);
@@ -207,10 +213,10 @@ function generateHashedAssets(builtWidgets: Array<{ name: string; jsPath: string
  * Main build process
  */
 async function main() {
-  console.log('Starting widget build process...\n');
+  console.log(`Starting widget ${WATCH_MODE ? 'watch' : 'build'} process...\n`);
 
-  // Clean assets directory
-  if (fs.existsSync(ASSETS_DIR)) {
+  // Clean assets directory (only on initial build, not in watch mode)
+  if (!WATCH_MODE && fs.existsSync(ASSETS_DIR)) {
     fs.rmSync(ASSETS_DIR, { recursive: true, force: true });
   }
   fs.mkdirSync(ASSETS_DIR, { recursive: true });
@@ -245,9 +251,17 @@ async function main() {
   // Generate hashed assets and HTML templates
   generateHashedAssets(builtWidgets);
 
-  console.log('\nBuild complete!\n');
-  console.log(`Assets directory: ${ASSETS_DIR}`);
-  console.log(`Total widgets built: ${builtWidgets.length}\n`);
+  if (WATCH_MODE) {
+    console.log('\n✨ Initial build complete! Watching for changes...\n');
+    console.log(`Assets directory: ${ASSETS_DIR}`);
+    console.log(`Total widgets: ${builtWidgets.length}\n`);
+    // Keep process alive in watch mode
+    process.stdin.resume();
+  } else {
+    console.log('\nBuild complete!\n');
+    console.log(`Assets directory: ${ASSETS_DIR}`);
+    console.log(`Total widgets built: ${builtWidgets.length}\n`);
+  }
 }
 
 // Run

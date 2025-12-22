@@ -112,10 +112,12 @@ All tool responses follow this pattern:
 
 The server uses `SessionManager` (server/src/utils/session.ts) to track MCP sessions:
 
-- Sessions are created per SSE connection with unique IDs
+- Sessions are created per HttpStreamable connection with unique IDs
+- Session IDs are communicated via the `mcp-session-id` header
 - Automatic cleanup of stale sessions runs based on `SESSION_MAX_AGE` (default 1 hour)
 - Each session has its own MCP server instance to maintain isolation
 - Session data includes server instance, transport, and creation timestamp
+- Resumability is enabled via `InMemoryEventStore` for handling connection interruptions
 
 ### Widget Build System
 
@@ -169,7 +171,7 @@ This ensures type safety and runtime validation.
 ## File Organization
 
 ### Server Structure
-- `server/src/server.ts` - Main server, tool registration, SSE transport setup
+- `server/src/server.ts` - Main server, tool registration, HttpStreamable transport setup
 - `server/src/types.ts` - Zod schemas and TypeScript interfaces
 - `server/src/utils/session.ts` - SessionManager class for MCP session lifecycle
 - `server/tests/*.test.ts` - Vitest specs for tools and validation
@@ -289,6 +291,6 @@ docker-compose -f docker/docker-compose.yml up -d
 - The `_meta.outputTemplate` field is critical for widget loading - never omit it
 - Widget build is separate from server build - always run `npm run build:widgets` when modifying widgets
 - The `text/html+skybridge` MIME type is non-negotiable for ChatGPT widget loading
-- Session cleanup runs automatically but sessions are isolated - each SSE connection gets its own MCP server instance
+- Session cleanup runs automatically but sessions are isolated - each HttpStreamable connection gets its own MCP server instance
 - Node.js 22+ is required for ES2023 features and native type stripping
 - Use `npm run inspect` for rapid local testing before connecting to ChatGPT

@@ -1,5 +1,5 @@
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import type { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import type { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { Logger } from 'pino';
 
 /**
@@ -7,7 +7,7 @@ import type { Logger } from 'pino';
  */
 export interface SessionData {
   server: Server;
-  transport: SSEServerTransport;
+  transport: StreamableHTTPServerTransport;
   createdAt: Date;
 }
 
@@ -26,7 +26,7 @@ export class SessionManager {
   /**
    * Create a new session
    */
-  create(sessionId: string, server: Server, transport: SSEServerTransport): SessionData {
+  create(sessionId: string, server: Server, transport: StreamableHTTPServerTransport): SessionData {
     const sessionData: SessionData = {
       server,
       transport,

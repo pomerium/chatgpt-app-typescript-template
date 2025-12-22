@@ -8,13 +8,17 @@ import pino from 'pino';
 import pinoHttp from 'pino-http';
 import { v4 as uuidv4 } from 'uuid';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
   ReadResourceRequestSchema,
+  isInitializeRequest,
   type CallToolRequest,
   type ListToolsRequest,
+  type ListResourcesRequest,
   type ReadResourceRequest,
   type Tool,
 } from '@modelcontextprotocol/sdk/types.js';
@@ -118,6 +122,21 @@ function createMcpServer(sessionId: string): Server {
     sessionLogger.debug('Listing tools');
     return {
       tools: [echoTool],
+    };
+  });
+
+  // List resources handler
+  server.setRequestHandler(ListResourcesRequestSchema, async (_request: ListResourcesRequest) => {
+    sessionLogger.debug('Listing resources');
+    return {
+      resources: [
+        {
+          uri: ECHO_WIDGET.uri,
+          name: ECHO_WIDGET.title,
+          description: 'Interactive scrolling marquee widget for displaying echoed messages',
+          mimeType: 'text/html+skybridge',
+        },
+      ],
     };
   });
 
@@ -258,50 +277,87 @@ async function main() {
     });
   });
 
-  // SSE endpoint for MCP connections
-  app.get('/mcp', async (req, res) => {
-    const sessionId = uuidv4();
+  // Unified MCP endpoint for HttpStreamable transport (GET/POST/DELETE)
+  app.all('/mcp', async (req, res) => {
+    const sessionId = req.headers['mcp-session-id'] as string | undefined;
 
-    logger.info({ sessionId, ip: req.ip }, 'New SSE connection');
-
-    // Create MCP server for this session
-    const server = createMcpServer(sessionId);
-    const transport = new SSEServerTransport('/mcp/messages', res);
-
-    // Store session
-    sessionManager.create(sessionId, server, transport);
-
-    // Connect server to transport
-    await server.connect(transport);
-
-    // Handle disconnect
-    res.on('close', () => {
-      logger.info({ sessionId }, 'SSE connection closed');
-      sessionManager.delete(sessionId);
-    });
-  });
-
-  // Message endpoint for MCP protocol
-  app.post('/mcp/messages', async (req, res) => {
-    const sessionId = req.query.sessionId as string;
-
-    if (!sessionId) {
-      res.status(400).json({ error: 'Missing sessionId query parameter' });
-      return;
-    }
-
-    const session = sessionManager.get(sessionId);
-
-    if (!session) {
-      res.status(404).json({ error: 'Session not found' });
-      return;
-    }
+    logger.info({ method: req.method, sessionId, ip: req.ip }, 'MCP request');
 
     try {
-      await session.transport.handlePostMessage(req, res);
+      let session = sessionId ? sessionManager.get(sessionId) : undefined;
+
+      // Handle initialization request (no session ID + POST with initialize message)
+      if (!sessionId && req.method === 'POST' && isInitializeRequest(req.body)) {
+        logger.info('Initializing new session');
+
+        // Create event store for resumability
+        const eventStore = new InMemoryEventStore();
+
+        // Create transport with session ID generator
+        const transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => uuidv4(),
+          eventStore,
+          onsessioninitialized: (newSessionId) => {
+            logger.info({ sessionId: newSessionId }, 'Session initialized');
+            // Session will be stored after transport is connected below
+          },
+        });
+
+        // Set up close handler to clean up session
+        transport.onclose = () => {
+          const sid = transport.sessionId;
+          if (sid) {
+            logger.info({ sessionId: sid }, 'Transport closed');
+            sessionManager.delete(sid);
+          }
+        };
+
+        // Create server and connect to transport BEFORE handling request
+        // This allows the transport to route responses through the connected server
+        const tempSessionId = 'initializing'; // Temporary ID until session is initialized
+        const server = createMcpServer(tempSessionId);
+        await server.connect(transport);
+
+        // Handle the initialization request (this will trigger onsessioninitialized)
+        await transport.handleRequest(req, res, req.body);
+
+        // Store the session after initialization with the actual session ID
+        const actualSessionId = transport.sessionId;
+        if (actualSessionId) {
+          sessionManager.create(actualSessionId, server, transport);
+        }
+
+        return;
+      }
+
+      // Reuse existing session
+      if (session) {
+        await session.transport.handleRequest(req, res, req.body);
+        return;
+      }
+
+      // Invalid request - no session ID or not an initialization request
+      logger.warn({ sessionId, method: req.method }, 'Invalid MCP request');
+      res.status(400).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32000,
+          message: 'Bad Request: No valid session ID provided',
+        },
+        id: null,
+      });
     } catch (err) {
-      logger.error({ err, sessionId }, 'Error handling message');
-      res.status(500).json({ error: 'Internal server error' });
+      logger.error({ err, sessionId }, 'Error handling MCP request');
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: '2.0',
+          error: {
+            code: -32603,
+            message: 'Internal server error',
+          },
+          id: null,
+        });
+      }
     }
   });
 
