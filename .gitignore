@@ -1,0 +1,113 @@
+# Dependencies
+node_modules/
+jspm_packages/
+bower_components
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Build outputs
+dist/
+assets/
+build/Release
+*.tsbuildinfo
+.vite/
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+lib-cov
+
+# Environment
+.env
+.env.*
+.env.local
+!.env.example
+
+# Cache directories
+.cache/
+.parcel-cache
+.npm
+.eslintcache
+.stylelintcache
+
+# IDE
+.vscode/
+.vscode-test
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Storybook
+storybook-static/
+
+# Temporary files
+.temp/
+tmp/
+
+# Build tools & package managers
+.grunt
+.lock-wscript
+.node_repl_history
+*.tgz
+.yarn-integrity
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Framework specific
+.next
+out
+.nuxt
+.output
+.svelte-kit/
+**/.vitepress/dist
+**/.vitepress/cache
+.vuepress/dist
+.docusaurus
+web_modules/
+
+# Cloud & Services
+.serverless/
+.fusebox/
+.dynamodb/
+.firebase/
+
+# Misc
+.tern-port
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# AI Tools
+.claude/

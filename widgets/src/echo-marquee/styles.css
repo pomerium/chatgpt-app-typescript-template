@@ -1,0 +1,94 @@
+@import "tailwindcss" reference;
+
+.marquee-container {
+  @apply w-full overflow-hidden rounded-lg border shadow-sm;
+  border-color: #e5e7eb;
+  background: linear-gradient(to right, #eff6ff, #faf5ff, #fdf2f8);
+}
+
+.dark .marquee-container {
+  border-color: #374151;
+  background: linear-gradient(to right, #172554, #581c87, #831843);
+}
+
+.marquee-wrapper {
+  @apply relative w-full py-4;
+}
+
+.marquee-content {
+  @apply flex whitespace-nowrap;
+  animation: marquee-scroll var(--marquee-duration, 20s) linear infinite;
+  --marquee-duration: 20s;
+}
+
+.marquee-text {
+  @apply inline-block text-2xl font-bold px-8;
+  background: linear-gradient(to right, #2563eb, #9333ea, #db2777);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.dark .marquee-text {
+  background: linear-gradient(to right, #60a5fa, #c084fc, #f472b6);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+@keyframes marquee-scroll {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+/* Pause animation on hover for accessibility */
+.marquee-content:hover {
+  animation-play-state: paused;
+}
+
+/* Gradient fade on edges for polish */
+.marquee-wrapper::before,
+.marquee-wrapper::after {
+  @apply absolute top-0 bottom-0 w-12 z-10 pointer-events-none;
+  content: '';
+}
+
+.marquee-wrapper::before {
+  @apply left-0;
+  background: linear-gradient(
+    to right,
+    rgb(239 246 255 / 1) 0%,
+    rgb(239 246 255 / 0) 100%
+  );
+}
+
+.dark .marquee-wrapper::before {
+  background: linear-gradient(
+    to right,
+    rgb(23 37 84 / 1) 0%,
+    rgb(23 37 84 / 0) 100%
+  );
+}
+
+.marquee-wrapper::after {
+  @apply right-0;
+  background: linear-gradient(
+    to left,
+    rgb(253 242 248 / 1) 0%,
+    rgb(253 242 248 / 0) 100%
+  );
+}
+
+.dark .marquee-wrapper::after {
+  background: linear-gradient(
+    to left,
+    rgb(59 7 100 / 1) 0%,
+    rgb(59 7 100 / 0) 100%
+  );
+}

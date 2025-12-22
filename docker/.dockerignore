@@ -1,0 +1,53 @@
+# Dependencies
+node_modules
+npm-debug.log*
+package-lock.json
+
+# Build outputs (will be built inside container)
+dist
+assets
+
+# Development files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage
+.nyc_output
+
+# Logs
+logs
+*.log
+
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# Storybook
+storybook-static
+.storybook
+
+# Docker
+docker/
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# CI/CD
+.github
+.gitlab-ci.yml

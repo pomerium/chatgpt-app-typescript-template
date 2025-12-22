@@ -1,0 +1,57 @@
+{
+  "name": "chatgpt-app-template",
+  "version": "1.0.0",
+  "description": "Minimal, production-ready ChatGPT app template using OpenAI Apps SDK",
+  "private": true,
+  "workspaces": [
+    "server",
+    "widgets"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:widgets\"",
+    "dev:server": "npm run dev --workspace=server",
+    "dev:widgets": "npm run dev --workspace=widgets",
+    "storybook": "npm run storybook --workspace=widgets",
+    "inspect": "npx @modelcontextprotocol/inspector http://localhost:3000/mcp",
+    "build": "npm run build:widgets && npm run build:server",
+    "build:server": "npm run build --workspace=server",
+    "build:widgets": "tsx scripts/build-all.mts",
+    "test": "npm run test --workspaces",
+    "test:server": "npm run test --workspace=server",
+    "test:widgets": "npm run test --workspace=widgets",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "type-check": "tsc --noEmit --project server && tsc --noEmit --project widgets"
+  },
+  "keywords": [
+    "chatgpt",
+    "openai",
+    "apps-sdk",
+    "mcp",
+    "template",
+    "react",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.0",
+    "eslint-plugin-jsx-a11y": "^6.8.0",
+    "eslint-plugin-react": "^7.34.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "fast-glob": "^3.3.2",
+    "p-limit": "^5.0.0",
+    "prettier": "^3.2.5",
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3",
+    "vite-plugin-compression": "^0.5.1"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  }
+}
