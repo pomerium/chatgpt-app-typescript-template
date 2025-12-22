@@ -23,7 +23,11 @@ import {
   type Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import { SessionManager } from './utils/session.js';
-import { EchoToolInputSchema, type EchoToolOutput, type WidgetDescriptor } from './types.js';
+import {
+  EchoToolInputSchema,
+  type EchoToolOutput,
+  type WidgetDescriptor,
+} from './types.js';
 
 // Load environment variables
 config();
@@ -34,7 +38,7 @@ const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const ASSETS_DIR = path.resolve(ROOT_DIR, 'assets');
 
 // Configuration
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const PORT = parseInt(process.env.PORT || '8080', 10);
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
 const SESSION_MAX_AGE = parseInt(process.env.SESSION_MAX_AGE || '3600000', 10);
@@ -104,7 +108,7 @@ function createMcpServer(sessionId: string): Server {
   // Define echo tool
   const echoTool: Tool = {
     name: 'echo',
-    description: 'Echoes back the user\'s message in a scrolling marquee widget',
+    description: "Echoes back the user's message in a scrolling marquee widget",
     inputSchema: {
       type: 'object',
       properties: {
@@ -118,111 +122,127 @@ function createMcpServer(sessionId: string): Server {
   };
 
   // List tools handler
-  server.setRequestHandler(ListToolsRequestSchema, async (_request: ListToolsRequest) => {
-    sessionLogger.debug('Listing tools');
-    return {
-      tools: [echoTool],
-    };
-  });
+  server.setRequestHandler(
+    ListToolsRequestSchema,
+    async (_request: ListToolsRequest) => {
+      sessionLogger.debug('Listing tools');
+      return {
+        tools: [echoTool],
+      };
+    }
+  );
 
   // List resources handler
-  server.setRequestHandler(ListResourcesRequestSchema, async (_request: ListResourcesRequest) => {
-    sessionLogger.debug('Listing resources');
-    return {
-      resources: [
-        {
-          uri: ECHO_WIDGET.uri,
-          name: ECHO_WIDGET.title,
-          description: 'Interactive scrolling marquee widget for displaying echoed messages',
-          mimeType: 'text/html+skybridge',
-        },
-      ],
-    };
-  });
-
-  // Call tool handler
-  server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest) => {
-    const { name, arguments: args } = request.params;
-
-    sessionLogger.info({ toolName: name, args }, 'Tool invoked');
-
-    if (name !== 'echo') {
-      const error = `Unknown tool: ${name}`;
-      sessionLogger.error({ toolName: name }, error);
-      throw new Error(error);
-    }
-
-    try {
-      // Validate input with Zod
-      const validatedInput = EchoToolInputSchema.parse(args || {});
-
-      // Create structured output
-      const output: EchoToolOutput = {
-        echoedMessage: validatedInput.message,
-        timestamp: new Date().toISOString(),
-      };
-
-      sessionLogger.info({ output }, 'Tool execution successful');
-
+  server.setRequestHandler(
+    ListResourcesRequestSchema,
+    async (_request: ListResourcesRequest) => {
+      sessionLogger.debug('Listing resources');
       return {
-        content: [
+        resources: [
           {
-            type: 'text',
-            text: `Echoing: "${validatedInput.message}"`,
+            uri: ECHO_WIDGET.uri,
+            name: ECHO_WIDGET.title,
+            description:
+              'Interactive scrolling marquee widget for displaying echoed messages',
+            mimeType: 'text/html+skybridge',
           },
         ],
-        structuredContent: output,
-        _meta: {
-          outputTemplate: {
-            type: 'resource',
-            resource: {
-              uri: ECHO_WIDGET.uri,
+      };
+    }
+  );
+
+  // Call tool handler
+  server.setRequestHandler(
+    CallToolRequestSchema,
+    async (request: CallToolRequest) => {
+      const { name, arguments: args } = request.params;
+
+      sessionLogger.info({ toolName: name, args }, 'Tool invoked');
+
+      if (name !== 'echo') {
+        const error = `Unknown tool: ${name}`;
+        sessionLogger.error({ toolName: name }, error);
+        throw new Error(error);
+      }
+
+      try {
+        // Validate input with Zod
+        const validatedInput = EchoToolInputSchema.parse(args || {});
+
+        // Create structured output
+        const output: EchoToolOutput = {
+          echoedMessage: validatedInput.message,
+          timestamp: new Date().toISOString(),
+        };
+
+        sessionLogger.info({ output }, 'Tool execution successful');
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Echoing: "${validatedInput.message}"`,
+            },
+          ],
+          structuredContent: output,
+          _meta: {
+            outputTemplate: {
+              type: 'resource',
+              resource: {
+                uri: ECHO_WIDGET.uri,
+              },
             },
           },
-        },
-      };
-    } catch (err) {
-      sessionLogger.error({ err, toolName: name }, 'Tool execution failed');
-      throw err;
-    }
-  });
-
-  // Read resource handler - Critical for widget loading
-  server.setRequestHandler(ReadResourceRequestSchema, async (request: ReadResourceRequest) => {
-    const { uri } = request.params;
-
-    sessionLogger.debug({ uri }, 'Reading resource');
-
-    // Handle widget resources
-    if (uri.startsWith('widget://')) {
-      const widgetId = uri.replace('widget://', '');
-
-      if (widgetId === ECHO_WIDGET.id) {
-        try {
-          const html = readWidgetHtml(widgetId);
-
-          sessionLogger.info({ uri, widgetId }, 'Widget resource loaded');
-
-          return {
-            contents: [
-              {
-                uri,
-                mimeType: 'text/html+skybridge', // CRITICAL for ChatGPT widget runtime
-                text: html,
-              },
-            ],
-          };
-        } catch (err) {
-          sessionLogger.error({ err, uri, widgetId }, 'Failed to load widget');
-          throw err;
-        }
+        };
+      } catch (err) {
+        sessionLogger.error({ err, toolName: name }, 'Tool execution failed');
+        throw err;
       }
     }
+  );
 
-    const error = `Unknown resource: ${uri}`;
-    sessionLogger.error({ uri }, error);
-    throw new Error(error);
-  });
+  // Read resource handler - Critical for widget loading
+  server.setRequestHandler(
+    ReadResourceRequestSchema,
+    async (request: ReadResourceRequest) => {
+      const { uri } = request.params;
+
+      sessionLogger.debug({ uri }, 'Reading resource');
+
+      // Handle widget resources
+      if (uri.startsWith('widget://')) {
+        const widgetId = uri.replace('widget://', '');
+
+        if (widgetId === ECHO_WIDGET.id) {
+          try {
+            const html = readWidgetHtml(widgetId);
+
+            sessionLogger.info({ uri, widgetId }, 'Widget resource loaded');
+
+            return {
+              contents: [
+                {
+                  uri,
+                  mimeType: 'text/html+skybridge', // CRITICAL for ChatGPT widget runtime
+                  text: html,
+                },
+              ],
+            };
+          } catch (err) {
+            sessionLogger.error(
+              { err, uri, widgetId },
+              'Failed to load widget'
+            );
+            throw err;
+          }
+        }
+      }
+
+      const error = `Unknown resource: ${uri}`;
+      sessionLogger.error({ uri }, error);
+      throw new Error(error);
+    }
+  );
 
   return server;
 }
@@ -287,7 +307,11 @@ async function main() {
       let session = sessionId ? sessionManager.get(sessionId) : undefined;
 
       // Handle initialization request (no session ID + POST with initialize message)
-      if (!sessionId && req.method === 'POST' && isInitializeRequest(req.body)) {
+      if (
+        !sessionId &&
+        req.method === 'POST' &&
+        isInitializeRequest(req.body)
+      ) {
         logger.info('Initializing new session');
 
         // Create event store for resumability

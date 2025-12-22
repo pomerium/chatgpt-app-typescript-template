@@ -77,7 +77,7 @@ npm run inspect
 npm run storybook
 ```
 
-Server runs on `http://localhost:3000/mcp`
+Server runs on `http://localhost:8080/mcp`
 
 ### Testing Your App
 
@@ -88,6 +88,7 @@ npm run inspect
 ```
 
 This opens a browser interface to:
+
 - List available tools
 - Test tool invocations
 - Inspect responses and metadata
@@ -103,6 +104,7 @@ This opens a browser interface to:
 #### 3. Refresh Connector
 
 After code changes:
+
 1. **Settings → Connectors → Your App → Refresh**
 2. This reloads tool definitions and metadata
 
@@ -166,10 +168,10 @@ const myTool: Tool = {
   inputSchema: {
     type: 'object',
     properties: {
-      input: { type: 'string', description: 'Tool input' }
+      input: { type: 'string', description: 'Tool input' },
     },
-    required: ['input']
-  }
+    required: ['input'],
+  },
 };
 ```
 
@@ -184,14 +186,14 @@ if (name === 'my_tool') {
   return {
     content: [{ type: 'text', text: 'Result' }],
     structuredContent: {
-      result: args.input
+      result: args.input,
     },
     _meta: {
       outputTemplate: {
         type: 'resource',
-        resource: { uri: 'widget://my-widget' }
-      }
-    }
+        resource: { uri: 'widget://my-widget' },
+      },
+    },
   };
 }
 ```
@@ -227,11 +229,13 @@ export default function MyWidget() {
 if (uri === 'widget://my-widget') {
   const html = readWidgetHtml('my-widget');
   return {
-    contents: [{
-      uri,
-      mimeType: 'text/html+skybridge', // CRITICAL!
-      text: html
-    }]
+    contents: [
+      {
+        uri,
+        mimeType: 'text/html+skybridge', // CRITICAL!
+        text: html,
+      },
+    ],
   };
 }
 ```
@@ -252,6 +256,7 @@ The build script auto-discovers widgets in `widgets/src/widgets/*.{tsx,jsx}` and
 Widgets are simple React components - **no mounting code required**:
 
 **1. Create widget entry point** in `widgets/src/widgets/[name].tsx`:
+
 ```tsx
 import { useOpenAiGlobal } from '../hooks/use-openai-global';
 
@@ -262,6 +267,7 @@ export default function MyWidget() {
 ```
 
 **2. Build automatically discovers and mounts it**:
+
 ```bash
 npm run build:widgets
 ```
@@ -269,6 +275,7 @@ npm run build:widgets
 **3. Widget available as** `widget://my-widget`
 
 The build system:
+
 - Auto-discovers all files in `widgets/src/widgets/*.{tsx,jsx}`
 - Generates virtual entry points with mounting code
 - Injects `StrictMode` wrapper and DOM mounting logic
@@ -279,8 +286,8 @@ The build system:
 #### State & Data
 
 ```typescript
-const toolOutput = useOpenAiGlobal('toolOutput');     // Tool's structured content
-const toolInput = useOpenAiGlobal('toolInput');       // Tool arguments
+const toolOutput = useOpenAiGlobal('toolOutput'); // Tool's structured content
+const toolInput = useOpenAiGlobal('toolInput'); // Tool arguments
 const [state, setState] = useWidgetState({ count: 0 }); // Persistent state
 ```
 
@@ -289,12 +296,12 @@ const [state, setState] = useWidgetState({ count: 0 }); // Persistent state
 #### Context Signals
 
 ```typescript
-const theme = useOpenAiGlobal('theme');               // 'light' | 'dark'
-const displayMode = useOpenAiGlobal('displayMode');   // 'inline' | 'pip' | 'fullscreen'
-const maxHeight = useOpenAiGlobal('maxHeight');       // Max height in pixels
-const safeArea = useOpenAiGlobal('safeArea');         // Insets for responsive layout
-const viewport = useOpenAiGlobal('viewport');         // { width, height }
-const locale = useOpenAiGlobal('locale');             // User locale (e.g., 'en-US')
+const theme = useOpenAiGlobal('theme'); // 'light' | 'dark'
+const displayMode = useOpenAiGlobal('displayMode'); // 'inline' | 'pip' | 'fullscreen'
+const maxHeight = useOpenAiGlobal('maxHeight'); // Max height in pixels
+const safeArea = useOpenAiGlobal('safeArea'); // Insets for responsive layout
+const viewport = useOpenAiGlobal('viewport'); // { width, height }
+const locale = useOpenAiGlobal('locale'); // User locale (e.g., 'en-US')
 ```
 
 #### Runtime APIs
@@ -342,9 +349,7 @@ export default function MyWidget() {
     <div style={containerStyle} className={theme === 'dark' ? 'dark' : ''}>
       <h1>My Widget</h1>
       <p>Tool output: {JSON.stringify(toolOutput)}</p>
-      <button onClick={() => setCount(count + 1)}>
-        Count: {count}
-      </button>
+      <button onClick={() => setCount(count + 1)}>Count: {count}</button>
     </div>
   );
 }
@@ -361,7 +366,7 @@ Create `.env` file (see `.env.example`):
 ```bash
 # Server
 NODE_ENV=development
-PORT=3000
+PORT=8080
 LOG_LEVEL=info          # fatal, error, warn, info, debug, trace
 
 # Session Management
@@ -385,11 +390,13 @@ CORS_ORIGIN=*
 
 ```typescript
 return {
-  contents: [{
-    uri: 'widget://my-widget',
-    mimeType: 'text/html+skybridge', // ← CRITICAL
-    text: html
-  }]
+  contents: [
+    {
+      uri: 'widget://my-widget',
+      mimeType: 'text/html+skybridge', // ← CRITICAL
+      text: html,
+    },
+  ],
 };
 ```
 
@@ -402,11 +409,11 @@ return {
 
 ### MCP Server Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check (returns status, version, session count) |
-| `/mcp` | GET | SSE connection endpoint for MCP clients |
-| `/mcp/messages?sessionId=<id>` | POST | Message handling for MCP protocol |
+| Endpoint                       | Method | Description                                           |
+| ------------------------------ | ------ | ----------------------------------------------------- |
+| `/health`                      | GET    | Health check (returns status, version, session count) |
+| `/mcp`                         | GET    | SSE connection endpoint for MCP clients               |
+| `/mcp/messages?sessionId=<id>` | POST   | Message handling for MCP protocol                     |
 
 ### Echo Tool Schema
 
@@ -460,12 +467,14 @@ npm test -- --coverage # With coverage
 ### Test Structure
 
 **Server Tests** (`server/tests/`):
+
 - Input validation with Zod
 - Tool response structure
 - Session management
 - Error handling
 
 **Widget Tests** (`widgets/tests/`):
+
 - Component rendering
 - User interactions
 - Accessibility (a11y) compliance
@@ -505,7 +514,7 @@ docker-compose -f docker/docker-compose.yml up -d
 docker-compose -f docker/docker-compose.yml logs -f
 
 # Health check
-curl http://localhost:3000/health
+curl http://localhost:8080/health
 ```
 
 ### Manual Deployment
@@ -538,6 +547,7 @@ NODE_ENV=production npm run start
 **Symptom**: Widget doesn't appear in ChatGPT
 
 **Solutions**:
+
 1. Verify `text/html+skybridge` MIME type in resource registration
 2. Check assets directory exists: `ls assets/`
 3. Rebuild widgets: `npm run build:widgets`
@@ -548,6 +558,7 @@ NODE_ENV=production npm run start
 **Symptom**: Tool doesn't appear in ChatGPT
 
 **Solutions**:
+
 1. Check server logs for errors
 2. Test with MCP Inspector: `npm run inspect`
 3. Refresh connector: Settings → Connectors → Refresh
@@ -558,6 +569,7 @@ NODE_ENV=production npm run start
 **Symptom**: "Session not found" errors
 
 **Solutions**:
+
 1. Check `SESSION_MAX_AGE` setting
 2. Review session cleanup logs
 3. Ensure SSE connection is maintained
@@ -568,6 +580,7 @@ NODE_ENV=production npm run start
 **Symptom**: `npm run build:widgets` fails
 
 **Solutions**:
+
 1. Clear node_modules: `rm -rf node_modules && npm install`
 2. Check for TypeScript errors: `npm run type-check`
 3. Verify all dependencies installed
@@ -575,11 +588,12 @@ NODE_ENV=production npm run start
 
 ### Port Already in Use
 
-**Symptom**: `Error: listen EADDRINUSE: address already in use :::3000`
+**Symptom**: `Error: listen EADDRINUSE: address already in use :::8080`
 
 **Solutions**:
+
 1. Change port in `.env`: `PORT=3001`
-2. Kill existing process: `lsof -ti:3000 | xargs kill`
+2. Kill existing process: `lsof -ti:8080 | xargs kill`
 
 ## Architecture Decisions
 
@@ -625,6 +639,7 @@ MIT
 ---
 
 **Built with**:
+
 - [OpenAI Apps SDK](https://developers.openai.com/apps-sdk/)
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 - [React 19](https://react.dev/)
