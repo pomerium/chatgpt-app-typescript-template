@@ -1,5 +1,4 @@
-import { StrictMode, useState } from 'react';
-import { createRoot } from 'react-dom/client';
+import { useState } from 'react';
 import { EchoMarquee } from '../echo-marquee/EchoMarquee';
 import { useOpenAiGlobal } from '../hooks/use-openai-global';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import '../index.css';
 
 /**
- * Main widget application component
+ * Echo Marquee Widget
  *
  * Demonstrates:
  * - Reading toolOutput from ChatGPT
@@ -17,7 +16,7 @@ import '../index.css';
  * - Safe area handling for responsive layout
  * - Max height constraints
  */
-function App() {
+export default function App() {
   // Read host state via useOpenAiGlobal hook
   const toolOutput = useOpenAiGlobal('toolOutput');
   const theme = useOpenAiGlobal('theme');
@@ -164,17 +163,4 @@ function App() {
       </div>
     </div>
   );
-}
-
-// Mount the app
-const rootElement = document.getElementById('echo-marquee-root');
-
-if (rootElement) {
-  createRoot(rootElement).render(
-    <StrictMode>
-      <App />
-    </StrictMode>
-  );
-} else {
-  console.error('Root element not found');
 }

@@ -121,12 +121,14 @@ The server uses `SessionManager` (server/src/utils/session.ts) to track MCP sess
 
 ### Widget Build System
 
-Vite auto-discovers and builds widgets via a custom plugin:
+Vite auto-discovers and builds widgets via a custom plugin with **automatic mounting**:
 
 - Scans `widgets/src/widgets/*.{tsx,jsx}` for widget entry points
-- Widget name comes from the filename (e.g., `marquee.tsx` → `marquee` widget)
-- Builds in watch mode during development with instant rebuilds
-- Generates content-hashed assets (e.g., `marquee-a1b2c3d4.js`)
+- Widget name comes from the filename (e.g., `echo-marquee.tsx` → `echo-marquee` widget)
+- **Widgets just export their component** - no mounting code needed
+- Build system creates virtual entry modules that handle mounting automatically
+- Virtual modules inject `StrictMode` wrapper and `ReactDOM.createRoot()` mounting logic
+- Generates content-hashed assets (e.g., `echo-marquee-a1b2c3d4.js`)
 - Creates HTML templates with preload hints that reference hashed assets
 - Both hashed and unhashed filenames are generated for flexibility
 - Widget bundles in `assets/` are generated artifacts; never edit them manually
@@ -135,8 +137,8 @@ Vite auto-discovers and builds widgets via a custom plugin:
 ```
 widgets/src/
   ├── widgets/              # Widget entry points (auto-discovered)
-  │   ├── marquee.tsx       # Widget entry
-  │   └── counter.tsx       # Another widget
+  │   ├── echo-marquee.tsx  # Widget entry - just exports component
+  │   └── counter.tsx       # Another widget entry
   ├── echo-marquee/         # Widget-specific components
   │   ├── EchoMarquee.tsx
   │   └── styles.css
@@ -146,11 +148,21 @@ widgets/src/
   └── utils/                # Shared utilities
 ```
 
-To add a new widget:
-1. Create `widgets/src/widgets/my-widget.tsx` (widget entry point)
+**To add a new widget:**
+1. Create `widgets/src/widgets/my-widget.tsx`:
+```tsx
+import { useOpenAiGlobal } from '../hooks/use-openai-global';
+
+export default function MyWidget() {
+  const toolOutput = useOpenAiGlobal('toolOutput');
+  return <div>{JSON.stringify(toolOutput)}</div>;
+}
+```
 2. Add supporting components in `widgets/src/my-widget/` if needed
 3. Widget automatically discovered and built in dev mode
 4. Widget will be available as `widget://my-widget`
+
+**No mounting code needed** - the build system generates virtual entry modules that handle mounting:
 
 ### Widget Development Patterns
 
@@ -192,12 +204,14 @@ This ensures type safety and runtime validation.
 - `server/tests/*.test.ts` - Vitest specs for tools and validation
 
 ### Widget Structure
-- `widgets/src/{widget-name}/index.tsx` - Widget entry point (auto-discovered)
-- `widgets/src/{widget-name}/{Component}.tsx` - Main component
+- `widgets/src/widgets/{widget-name}.tsx` - Widget entry point (auto-discovered, just exports component)
+- `widgets/src/{widget-name}/{Component}.tsx` - Supporting components for the widget
 - `widgets/src/{widget-name}/styles.css` - Component-specific styles
 - `widgets/src/{widget-name}/{Component}.stories.tsx` - Storybook stories
+- `widgets/src/components/` - Shared components (including shadcn/ui)
 - `widgets/src/hooks/` - Shared React hooks for OpenAI API integration
 - `widgets/src/types/openai.d.ts` - TypeScript definitions for window.openai
+- `widgets/vite-plugin-widgets.ts` - Custom Vite plugin for auto-discovery and mounting
 
 ### Generated Assets
 - `assets/` - Built widget bundles (gitignored)

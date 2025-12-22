@@ -12,6 +12,7 @@ interface WidgetEntry {
 
 /**
  * Vite plugin that auto-discovers widgets and builds them separately
+ * Widgets just export their component - mounting is handled automatically
  */
 export function widgetDiscoveryPlugin(): Plugin {
   let config: ResolvedConfig;
@@ -19,6 +20,7 @@ export function widgetDiscoveryPlugin(): Plugin {
 
   return {
     name: 'widget-discovery',
+    enforce: 'pre', // Run before other plugins
 
     config() {
       // Discover widgets during config phase
@@ -44,13 +46,14 @@ export function widgetDiscoveryPlugin(): Plugin {
       console.log();
 
       if (widgets.length === 0) {
-        throw new Error('No widgets found in src/**/index.{tsx,jsx}');
+        throw new Error('No widgets found in src/widgets/*.{tsx,jsx}');
       }
 
-      // Build multi-entry configuration
+      // Build multi-entry configuration using virtual modules
       const input: Record<string, string> = {};
       widgets.forEach((widget) => {
-        input[widget.name] = widget.path;
+        // Use virtual module as entry point - it will handle mounting
+        input[widget.name] = `virtual:widget-${widget.name}`;
       });
 
       return {
@@ -72,6 +75,52 @@ export function widgetDiscoveryPlugin(): Plugin {
           },
         },
       };
+    },
+
+    resolveId(id) {
+      // Resolve virtual widget entry modules
+      if (id.startsWith('virtual:widget-')) {
+        // Return the ID without \0 prefix and mark it as external to force through esbuild
+        return {
+          id: `${id}.tsx`,
+          external: false,
+        };
+      }
+    },
+
+    load(id) {
+      // Generate mounting code for virtual widget modules
+      if (id.startsWith('virtual:widget-') && id.endsWith('.tsx')) {
+        const widgetName = id.replace('virtual:widget-', '').replace('.tsx', '');
+        const widget = widgets.find((w) => w.name === widgetName);
+
+        if (!widget) {
+          throw new Error(`Widget not found: ${widgetName}`);
+        }
+
+        // Generate the mounting wrapper code
+        // Return as code with explicit loader hint
+        return {
+          code: `
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import Widget from '${widget.path}';
+
+const rootElement = document.getElementById('${widgetName}-root');
+
+if (rootElement) {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <Widget />
+    </StrictMode>
+  );
+} else {
+  console.error('Root element not found: ${widgetName}-root');
+}
+`,
+          map: null,
+        };
+      }
     },
 
     configResolved(resolvedConfig) {

@@ -122,11 +122,14 @@ chatgpt-app-template/
 │
 ├── widgets/                 # React widgets
 │   ├── src/
+│   │   ├── widgets/
+│   │   │   └── echo-marquee.tsx   # Widget entry (auto-discovered)
 │   │   ├── echo-marquee/
-│   │   │   ├── index.tsx   # Entry (auto-discovered)
-│   │   │   ├── EchoMarquee.tsx
+│   │   │   ├── EchoMarquee.tsx    # Shared components
 │   │   │   ├── EchoMarquee.stories.tsx
 │   │   │   └── styles.css
+│   │   ├── components/
+│   │   │   └── ui/              # ShadCN components
 │   │   ├── hooks/
 │   │   │   ├── use-openai-global.ts
 │   │   │   └── use-widget-state.ts
@@ -195,10 +198,26 @@ if (name === 'my_tool') {
 
 ### 3. Create Widget
 
-```bash
-mkdir widgets/src/my-widget
-# Create index.tsx, component, and styles
+Create `widgets/src/widgets/my-widget.tsx`:
+
+```tsx
+// widgets/src/widgets/my-widget.tsx
+import { useOpenAiGlobal } from '../hooks/use-openai-global';
+
+export default function MyWidget() {
+  const toolOutput = useOpenAiGlobal('toolOutput');
+  const theme = useOpenAiGlobal('theme');
+
+  return (
+    <div className={theme === 'dark' ? 'dark' : ''}>
+      <h1>My Widget</h1>
+      <pre>{JSON.stringify(toolOutput, null, 2)}</pre>
+    </div>
+  );
+}
 ```
+
+**That's it!** No mounting code needed - the build system handles it automatically.
 
 ### 4. Register Widget Resource
 
@@ -224,9 +243,36 @@ npm run build:widgets
 npm run dev:server
 ```
 
-The build script auto-discovers widgets in `widgets/src/**/index.{tsx,jsx}`
+The build script auto-discovers widgets in `widgets/src/widgets/*.{tsx,jsx}` and automatically handles mounting
 
 ## Widget Development
+
+### Widget Pattern
+
+Widgets are simple React components - **no mounting code required**:
+
+**1. Create widget entry point** in `widgets/src/widgets/[name].tsx`:
+```tsx
+import { useOpenAiGlobal } from '../hooks/use-openai-global';
+
+export default function MyWidget() {
+  const toolOutput = useOpenAiGlobal('toolOutput');
+  return <div>Widget content</div>;
+}
+```
+
+**2. Build automatically discovers and mounts it**:
+```bash
+npm run build:widgets
+```
+
+**3. Widget available as** `widget://my-widget`
+
+The build system:
+- Auto-discovers all files in `widgets/src/widgets/*.{tsx,jsx}`
+- Generates virtual entry points with mounting code
+- Injects `StrictMode` wrapper and DOM mounting logic
+- Creates content-hashed bundles and HTML templates
 
 ### window.openai API Reference
 
@@ -274,16 +320,18 @@ window.openai?.openExternal({ href: 'https://example.com' });
 await window.openai?.requestClose();
 ```
 
-### Example Widget Component
+### Example: Full Widget with Safe Area
 
 ```tsx
+// widgets/src/widgets/my-widget.tsx
 import { useState } from 'react';
 import { useOpenAiGlobal } from '../hooks/use-openai-global';
 
-function MyWidget() {
+export default function MyWidget() {
   const toolOutput = useOpenAiGlobal('toolOutput');
   const theme = useOpenAiGlobal('theme');
   const safeArea = useOpenAiGlobal('safeArea');
+  const [count, setCount] = useState(0);
 
   const containerStyle = {
     paddingTop: safeArea?.insets?.top || 0,
@@ -292,11 +340,17 @@ function MyWidget() {
 
   return (
     <div style={containerStyle} className={theme === 'dark' ? 'dark' : ''}>
-      {/* Your widget UI */}
+      <h1>My Widget</h1>
+      <p>Tool output: {JSON.stringify(toolOutput)}</p>
+      <button onClick={() => setCount(count + 1)}>
+        Count: {count}
+      </button>
     </div>
   );
 }
 ```
+
+**Note**: Just export the component as default - no mounting code needed!
 
 ## Configuration
 
