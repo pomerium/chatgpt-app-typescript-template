@@ -121,20 +121,35 @@ The server uses `SessionManager` (server/src/utils/session.ts) to track MCP sess
 
 ### Widget Build System
 
-The build system (scripts/build-all.mts) auto-discovers widgets:
+Vite auto-discovers and builds widgets via a custom plugin:
 
-- Scans `widgets/src/**/index.{tsx,jsx}` for entry points
-- Each widget directory name becomes the widget ID (e.g., `echo-marquee`)
-- Builds in parallel with configurable concurrency (`BUILD_CONCURRENCY` env var or CPU count / 2)
-- Generates content-hashed assets (e.g., `echo-marquee-a1b2c3d4.js`)
+- Scans `widgets/src/widgets/*.{tsx,jsx}` for widget entry points
+- Widget name comes from the filename (e.g., `marquee.tsx` → `marquee` widget)
+- Builds in watch mode during development with instant rebuilds
+- Generates content-hashed assets (e.g., `marquee-a1b2c3d4.js`)
 - Creates HTML templates with preload hints that reference hashed assets
 - Both hashed and unhashed filenames are generated for flexibility
 - Widget bundles in `assets/` are generated artifacts; never edit them manually
 
+**Widget folder structure:**
+```
+widgets/src/
+  ├── widgets/              # Widget entry points (auto-discovered)
+  │   ├── marquee.tsx       # Widget entry
+  │   └── counter.tsx       # Another widget
+  ├── echo-marquee/         # Widget-specific components
+  │   ├── EchoMarquee.tsx
+  │   └── styles.css
+  ├── components/           # Shared components (including shadcn/ui)
+  │   └── ui/
+  ├── hooks/                # Shared hooks
+  └── utils/                # Shared utilities
+```
+
 To add a new widget:
-1. Create `widgets/src/my-widget/index.tsx` (must export React component)
-2. Add component-specific styles in `widgets/src/my-widget/styles.css`
-3. Run `npm run build:widgets`
+1. Create `widgets/src/widgets/my-widget.tsx` (widget entry point)
+2. Add supporting components in `widgets/src/my-widget/` if needed
+3. Widget automatically discovered and built in dev mode
 4. Widget will be available as `widget://my-widget`
 
 ### Widget Development Patterns

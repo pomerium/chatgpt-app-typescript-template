@@ -1,7 +1,7 @@
 import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { EchoMarquee } from './EchoMarquee.js';
-import { useOpenAiGlobal } from '../hooks/use-openai-global.js';
+import { EchoMarquee } from '../echo-marquee/EchoMarquee';
+import { useOpenAiGlobal } from '../hooks/use-openai-global';
 import '../index.css';
 
 /**
