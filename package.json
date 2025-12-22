@@ -1,5 +1,5 @@
 {
-  "name": "chatgpt-app-template",
+  "name": "chatgpt-app-typescript-template",
   "version": "1.0.0",
   "description": "Minimal, production-ready ChatGPT app template using OpenAI Apps SDK",
   "private": true,
