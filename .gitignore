@@ -109,5 +109,11 @@ web_modules/
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# AI Tools
+# AI Tools (user/project-specific settings only)
+# Remove this from the template if you want to be tracked
 .claude/
+.cursor/
+.windsurf/
+.aider/
+.continue/
+.codeium/
