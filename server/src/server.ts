@@ -14,11 +14,13 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   ListResourcesRequestSchema,
+  ListResourceTemplatesRequestSchema,
   ReadResourceRequestSchema,
   isInitializeRequest,
   type CallToolRequest,
   type ListToolsRequest,
   type ListResourcesRequest,
+  type ListResourceTemplatesRequest,
   type ReadResourceRequest,
   type Tool,
 } from '@modelcontextprotocol/sdk/types.js';
@@ -119,6 +121,11 @@ function createMcpServer(sessionId: string): Server {
       },
       required: ['message'],
     },
+    _meta: {
+      'openai/outputTemplate': ECHO_WIDGET.uri,
+      'openai/widgetAccessible': true,
+      'openai/resultCanProduceWidget': true,
+    },
   };
 
   // List tools handler
@@ -145,6 +152,30 @@ function createMcpServer(sessionId: string): Server {
             description:
               'Interactive scrolling marquee widget for displaying echoed messages',
             mimeType: 'text/html+skybridge',
+          },
+        ],
+      };
+    }
+  );
+
+  // List resource templates handler
+  server.setRequestHandler(
+    ListResourceTemplatesRequestSchema,
+    async (_request: ListResourceTemplatesRequest) => {
+      sessionLogger.debug('Listing resource templates');
+      return {
+        resourceTemplates: [
+          {
+            uriTemplate: ECHO_WIDGET.uri,
+            name: ECHO_WIDGET.title,
+            description:
+              'Interactive scrolling marquee widget for displaying echoed messages',
+            mimeType: 'text/html+skybridge',
+            _meta: {
+              'openai/outputTemplate': ECHO_WIDGET.uri,
+              'openai/widgetAccessible': true,
+              'openai/resultCanProduceWidget': true,
+            },
           },
         ],
       };
@@ -283,6 +314,9 @@ async function main() {
 
   // Parse JSON bodies
   app.use(express.json());
+
+  // Serve static assets (widgets)
+  app.use('/assets', express.static(ASSETS_DIR));
 
   // Session manager
   const sessionManager = new SessionManager(logger);
