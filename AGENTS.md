@@ -20,10 +20,13 @@ npm workspaces split the codebase: `server/` is the MCP backend, `widgets/` hous
 # Start server in watch mode
 npm run dev:server
 
-# Build widgets (run separately after server is running)
+# Serve widgets via Vite dev server on port 4444
+npm run dev:widgets
+
+# Alternative: Build widgets (one-time build)
 npm run build:widgets
 
-# Test with MCP Inspector (requires server + built widgets)
+# Test with MCP Inspector (requires server + widgets)
 npm run inspect
 
 # Run Storybook for widget development
@@ -277,6 +280,7 @@ Key environment variables (create `.env` from `.env.example`):
 ```bash
 NODE_ENV=development           # Controls logging format
 PORT=8080                      # Server port
+WIDGET_PORT=4444               # Widget dev server port (default: 4444)
 LOG_LEVEL=info                 # Pino log level: fatal, error, warn, info, debug, trace
 SESSION_MAX_AGE=3600000        # Session cleanup threshold (1 hour in ms)
 CORS_ORIGIN=*                  # CORS origin (set to domain in production)

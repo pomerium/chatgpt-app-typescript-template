@@ -20,7 +20,7 @@ export function widgetDiscoveryPlugin(): Plugin {
 
   return {
     name: 'widget-discovery',
-    enforce: 'pre', // Run before other plugins
+    // No enforce - run in normal order after React plugin
 
     config() {
       // Discover widgets during config phase
@@ -52,8 +52,8 @@ export function widgetDiscoveryPlugin(): Plugin {
       // Build multi-entry configuration using virtual modules
       const input: Record<string, string> = {};
       widgets.forEach((widget) => {
-        // Use virtual module as entry point - it will handle mounting
-        input[widget.name] = `virtual:widget-${widget.name}`;
+        // Use virtual .js module as entry point (same as dev mode)
+        input[widget.name] = `virtual:widget-${widget.name}.js`;
       });
 
       return {
@@ -78,41 +78,55 @@ export function widgetDiscoveryPlugin(): Plugin {
     },
 
     resolveId(id) {
-      // Resolve virtual widget entry modules
-      if (id.startsWith('virtual:widget-')) {
-        // Return the ID without \0 prefix and mark it as external to force through esbuild
-        return {
-          id: `${id}.tsx`,
-          external: false,
-        };
+      // Strip leading slash from browser requests
+      let moduleId = id;
+      if (moduleId.startsWith('/')) {
+        moduleId = moduleId.slice(1);
+      }
+
+      // Resolve virtual widget entry modules (.js so React plugin doesn't expect preamble)
+      if (moduleId.startsWith('virtual:widget-') && moduleId.endsWith('.js')) {
+        return moduleId;
       }
     },
 
     load(id) {
-      // Generate mounting code for virtual widget modules
-      if (id.startsWith('virtual:widget-') && id.endsWith('.tsx')) {
-        const widgetName = id.replace('virtual:widget-', '').replace('.tsx', '');
+      // Generate mounting code for virtual widget modules (.js files, no JSX)
+      if (id.startsWith('virtual:widget-') && id.endsWith('.js')) {
+        const widgetName = id.replace('virtual:widget-', '').replace('.js', '');
         const widget = widgets.find((w) => w.name === widgetName);
 
         if (!widget) {
           throw new Error(`Widget not found: ${widgetName}`);
         }
 
-        // Generate the mounting wrapper code
-        // Return as code with explicit loader hint
+        // Setup preamble FIRST, then use dynamic import like OpenAI examples
         return {
           code: `
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import Widget from '${widget.path}';
+import '/@vite/client';
+import RefreshRuntime from '/@react-refresh';
+
+if (!window.__vite_plugin_react_preamble_installed__) {
+  RefreshRuntime.injectIntoGlobalHook(window);
+  window.$RefreshReg$ = () => {};
+  window.$RefreshSig$ = () => (type) => type;
+  window.__vite_plugin_react_preamble_installed__ = true;
+}
+
+// Use dynamic import (await import) to ensure preamble runs first
+const [{ default: React }, { createRoot }, { default: Widget }] = await Promise.all([
+  import('react'),
+  import('react-dom/client'),
+  import('${widget.path}')
+]);
 
 const rootElement = document.getElementById('${widgetName}-root');
 
 if (rootElement) {
   createRoot(rootElement).render(
-    <StrictMode>
-      <Widget />
-    </StrictMode>
+    React.createElement(React.StrictMode, null,
+      React.createElement(Widget, null)
+    )
   );
 } else {
   console.error('Root element not found: ${widgetName}-root');
@@ -125,6 +139,41 @@ if (rootElement) {
 
     configResolved(resolvedConfig) {
       config = resolvedConfig;
+    },
+
+    configureServer(server) {
+      // Serve HTML pages during development
+      server.middlewares.use((req, res, next) => {
+        if (!req.url) return next();
+
+        const url = req.url.split('?')[0];
+
+        // Match /widget-name.html or /widget-name
+        const htmlMatch = url.match(/^\/([\w-]+)(?:\.html)?$/);
+        if (!htmlMatch) return next();
+
+        const widgetName = htmlMatch[1];
+        const widget = widgets.find((w) => w.name === widgetName);
+
+        if (!widget) return next();
+
+        // Reference virtual .js module (not .tsx) so React plugin doesn't expect preamble
+        const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${widget.name}</title>
+  <script type="module" src="/virtual:widget-${widget.name}.js"></script>
+</head>
+<body>
+  <div id="${widget.name}-root"></div>
+</body>
+</html>`;
+
+        res.setHeader('Content-Type', 'text/html');
+        res.end(html);
+      });
     },
 
     writeBundle() {

@@ -6,6 +6,7 @@ import { widgetDiscoveryPlugin } from './vite-plugin-widgets';
 import path from 'path';
 
 const isProd = process.env.NODE_ENV === 'production';
+const widgetPort = Number(process.env.WIDGET_PORT || 4444);
 
 export default defineConfig({
   resolve: {
@@ -14,9 +15,9 @@ export default defineConfig({
     },
   },
   plugins: [
-    widgetDiscoveryPlugin(), // Auto-discovers widgets from src/**/index.{tsx,jsx}
+    react(), // React plugin first to handle JSX transforms
+    widgetDiscoveryPlugin(), // Then widget discovery
     tailwindcss(),
-    react(),
     // Production compression only
     ...(isProd
       ? [
@@ -31,6 +32,11 @@ export default defineConfig({
         ]
       : []),
   ],
+  server: {
+    port: widgetPort,
+    strictPort: true,
+    cors: true,
+  },
   build: {
     target: 'es2023',
     outDir: '../assets',
