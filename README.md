@@ -191,7 +191,7 @@ if (name === 'my_tool') {
     _meta: {
       outputTemplate: {
         type: 'resource',
-        resource: { uri: 'widget://my-widget' },
+        resource: { uri: 'ui://my-widget' },
       },
     },
   };
@@ -226,7 +226,7 @@ export default function MyWidget() {
 ```typescript
 // In ReadResourceRequestSchema handler
 
-if (uri === 'widget://my-widget') {
+if (uri === 'ui://my-widget') {
   const html = readWidgetHtml('my-widget');
   return {
     contents: [
@@ -272,7 +272,7 @@ export default function MyWidget() {
 npm run build:widgets
 ```
 
-**3. Widget available as** `widget://my-widget`
+**3. Widget available as** `ui://my-widget`
 
 The build system:
 
@@ -392,7 +392,7 @@ CORS_ORIGIN=*
 return {
   contents: [
     {
-      uri: 'widget://my-widget',
+      uri: 'ui://my-widget',
       mimeType: 'text/html+skybridge', // ← CRITICAL
       text: html,
     },
@@ -447,7 +447,7 @@ return {
   _meta: {
     outputTemplate: {
       type: 'resource',
-      resource: { uri: 'widget://echo-marquee' }
+      resource: { uri: 'ui://echo-marquee' }
     }
   }
 }

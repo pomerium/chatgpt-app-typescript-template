@@ -64,7 +64,7 @@ const logger = pino({
 const ECHO_WIDGET: WidgetDescriptor = {
   id: 'echo-marquee',
   title: 'Echo Marquee',
-  uri: 'widget://echo-marquee',
+  uri: 'ui://echo-marquee',
 };
 
 /**
@@ -210,8 +210,8 @@ function createMcpServer(sessionId: string): Server {
       sessionLogger.debug({ uri }, 'Reading resource');
 
       // Handle widget resources
-      if (uri.startsWith('widget://')) {
-        const widgetId = uri.replace('widget://', '');
+      if (uri.startsWith('ui://')) {
+        const widgetId = uri.replace('ui://', '');
 
         if (widgetId === ECHO_WIDGET.id) {
           try {

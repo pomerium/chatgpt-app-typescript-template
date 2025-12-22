@@ -80,7 +80,7 @@ Widgets MUST be registered with the exact MIME type `text/html+skybridge` for Ch
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const { uri } = request.params;
 
-  if (uri.startsWith('widget://')) {
+  if (uri.startsWith('ui://')) {
     return {
       contents: [
         {
@@ -108,7 +108,7 @@ All tool responses follow this pattern:
   _meta: {
     outputTemplate: {
       type: 'resource',
-      resource: { uri: 'widget://widget-name' }
+      resource: { uri: 'ui://widget-name' }
     }
   }
 }
@@ -170,7 +170,7 @@ export default function MyWidget() {
 
 2. Add supporting components in `widgets/src/my-widget/` if needed
 3. Widget automatically discovered and built in dev mode
-4. Widget will be available as `widget://my-widget`
+4. Widget will be available as `ui://my-widget`
 
 **No mounting code needed** - the build system generates virtual entry modules that handle mounting:
 
