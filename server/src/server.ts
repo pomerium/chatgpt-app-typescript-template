@@ -338,7 +338,7 @@ async function main() {
     logger.info({ method: req.method, sessionId, ip: req.ip }, 'MCP request');
 
     try {
-      let session = sessionId ? sessionManager.get(sessionId) : undefined;
+      const session = sessionId ? sessionManager.get(sessionId) : undefined;
 
       if (
         !sessionId &&
