@@ -6,7 +6,6 @@ describe('EchoMarquee', () => {
   it('should render the message', () => {
     render(<EchoMarquee message="Test Message" />);
 
-    // Message appears multiple times due to duplication for seamless loop
     const messages = screen.getAllByText(/Test Message/i);
     expect(messages.length).toBeGreaterThan(0);
   });
@@ -43,7 +42,6 @@ describe('EchoMarquee', () => {
   it('should duplicate message for seamless loop', () => {
     render(<EchoMarquee message="Loop Test" />);
 
-    // The message should appear multiple times
     const allText = screen.getAllByText(/Loop Test/);
     expect(allText.length).toBeGreaterThan(1);
   });

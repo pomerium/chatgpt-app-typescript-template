@@ -20,19 +20,15 @@ export function widgetDiscoveryPlugin(): Plugin {
 
   return {
     name: 'widget-discovery',
-    // Let plugin order in vite.config.ts determine execution order
 
     config() {
-      // Discover widgets during config phase
-      // Look for top-level files in src/widgets/ only (not nested folders)
       const entries = fg.sync('src/widgets/*.{tsx,jsx}', {
         absolute: false,
         onlyFiles: true,
-        deep: 1, // Only top-level files in widgets folder
+        deep: 1,
       });
 
       widgets = entries.map((entry) => {
-        // Widget name is the filename without extension
         const name = path.basename(entry, path.extname(entry));
         return {
           name,
@@ -49,10 +45,8 @@ export function widgetDiscoveryPlugin(): Plugin {
         throw new Error('No widgets found in src/widgets/*.{tsx,jsx}');
       }
 
-      // Build multi-entry configuration using virtual modules
       const input: Record<string, string> = {};
       widgets.forEach((widget) => {
-        // Use virtual module as entry (injects preamble, then imports widget)
         input[widget.name] = `virtual:widget-${widget.name}.js`;
       });
 
@@ -64,9 +58,7 @@ export function widgetDiscoveryPlugin(): Plugin {
               entryFileNames: '[name].js',
               chunkFileNames: '[name]-[hash].js',
               assetFileNames: (assetInfo) => {
-                // Name CSS files after their widget
                 if (assetInfo.name?.endsWith('.css')) {
-                  // Extract widget name from the source
                   return '[name].css';
                 }
                 return '[name]-[hash][extname]';
@@ -78,18 +70,15 @@ export function widgetDiscoveryPlugin(): Plugin {
     },
 
     resolveId(id) {
-      // Strip leading slash from browser requests
       let moduleId = id;
       if (moduleId.startsWith('/')) {
         moduleId = moduleId.slice(1);
       }
 
-      // Handle virtual module IDs (Rollup convention: use \0 prefix)
       if (moduleId.startsWith('virtual:widget-')) {
-        return '\0' + moduleId; // Return with null byte prefix
+        return '\0' + moduleId;
       }
 
-      // Handle CSS virtual modules (pizza demo pattern)
       if (moduleId.endsWith('.css')) {
         const name = moduleId.slice(0, -4);
         if (widgets.find((w) => w.name === name)) {
@@ -99,10 +88,8 @@ export function widgetDiscoveryPlugin(): Plugin {
     },
 
     load(id) {
-      // Handle virtual modules (strip \0 prefix for matching)
       const cleanId = id.startsWith('\0') ? id.slice(1) : id;
 
-      // Handle CSS virtual modules
       if (cleanId.startsWith('virtual:style:') && cleanId.endsWith('.css')) {
         const widgetName = cleanId
           .replace('virtual:style:', '')
@@ -113,7 +100,6 @@ export function widgetDiscoveryPlugin(): Plugin {
           return null;
         }
 
-        // Import global CSS and widget-specific CSS
         const toServerRoot = (abs: string) => {
           const rel = path.relative(process.cwd(), abs).replace(/\\/g, '/');
           if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
@@ -122,7 +108,6 @@ export function widgetDiscoveryPlugin(): Plugin {
           return './' + rel;
         };
 
-        // Find CSS files in widget directory and global index.css
         const globalCss = path.resolve('src/index.css');
         const lines = ['@source "./src";'];
 
@@ -130,7 +115,6 @@ export function widgetDiscoveryPlugin(): Plugin {
           lines.push(`@import "${toServerRoot(globalCss)}";`);
         }
 
-        // Add widget-specific CSS if it exists
         const widgetCss = path.resolve(widget.dir, `../index.css`);
         if (fs.existsSync(widgetCss)) {
           lines.push(`@import "${toServerRoot(widgetCss)}";`);
@@ -142,7 +126,6 @@ export function widgetDiscoveryPlugin(): Plugin {
         };
       }
 
-      // Handle widget entry virtual modules
       if (cleanId.startsWith('virtual:widget-') && cleanId.endsWith('.js')) {
         const widgetName = cleanId
           .replace('virtual:widget-', '')
@@ -153,12 +136,9 @@ export function widgetDiscoveryPlugin(): Plugin {
           throw new Error(`Widget not found: ${widgetName}`);
         }
 
-        // Convert to /@fs/ path (pizza demo pattern)
         const toFs = (abs: string) => '/@fs/' + abs.replace(/\\/g, '/');
         const widgetPath = toFs(widget.path);
 
-        // Inject preamble BEFORE importing widget (exact pizza demo pattern)
-        // This ensures Fast Refresh is set up before the widget code runs
         return {
           code: `import "/@vite/client";
 
@@ -183,13 +163,11 @@ await import(${JSON.stringify(widgetPath)});`,
     },
 
     configureServer(server) {
-      // Serve HTML pages during development
       server.middlewares.use((req, res, next) => {
         if (!req.url) return next();
 
         const url = req.url.split('?')[0];
 
-        // Match /widget-name.html or /widget-name
         const htmlMatch = url.match(/^\/([\w-]+)(?:\.html)?$/);
         if (!htmlMatch) return next();
 
@@ -198,11 +176,9 @@ await import(${JSON.stringify(widgetPath)});`,
 
         if (!widget) return next();
 
-        // Get the widget port for absolute URLs (needed for iframe embedding)
         const widgetPort = process.env.WIDGET_PORT || '4444';
         const baseUrl = `http://localhost:${widgetPort}`;
 
-        // Import virtual module (sets up preamble, then loads widget)
         const html = `<!doctype html>
 <html>
 <head>
@@ -222,7 +198,6 @@ await import(${JSON.stringify(widgetPath)});`,
     },
 
     writeBundle() {
-      // Generate hashed assets and HTML templates after build
       const outDir = config.build.outDir;
 
       widgets.forEach((widget) => {
@@ -234,13 +209,11 @@ await import(${JSON.stringify(widgetPath)});`,
           return;
         }
 
-        // Generate content hashes
         const jsHash = generateContentHash(jsPath);
         const cssHash = fs.existsSync(cssPath)
           ? generateContentHash(cssPath)
           : null;
 
-        // Create hashed copies
         const jsHashedPath = path.join(outDir, `${widget.name}-${jsHash}.js`);
         const cssHashedPath = cssHash
           ? path.join(outDir, `${widget.name}-${cssHash}.css`)
@@ -256,8 +229,6 @@ await import(${JSON.stringify(widgetPath)});`,
           console.log(`  ${widget.name}.css → ${widget.name}-${cssHash}.css`);
         }
 
-        // Determine base URL for widget assets
-        // Matches OpenAI Apps SDK pattern: use BASE_URL env var, fallback to localhost:WIDGET_PORT
         const widgetPort = process.env.WIDGET_PORT || '4444';
         const defaultBaseUrl = `http://localhost:${widgetPort}`;
         const baseUrlCandidate = process.env.BASE_URL?.trim() ?? '';
@@ -265,7 +236,6 @@ await import(${JSON.stringify(widgetPath)});`,
           baseUrlCandidate.length > 0 ? baseUrlCandidate : defaultBaseUrl;
         const baseUrl = baseUrlRaw.replace(/\/+$/, '') || defaultBaseUrl;
 
-        // Generate HTML template
         const html = `<!doctype html>
 <html>
 <head>
@@ -282,7 +252,6 @@ await import(${JSON.stringify(widgetPath)});`,
 </body>
 </html>`;
 
-        // Write HTML files
         const htmlPath = path.join(outDir, `${widget.name}.html`);
         fs.writeFileSync(htmlPath, html, 'utf-8');
         console.log(`  ${widget.name}.html (with preload hints)`);

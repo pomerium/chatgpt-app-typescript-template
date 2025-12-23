@@ -16,10 +16,8 @@ const SRC_DIR = path.join(WIDGETS_DIR, 'src');
 const ASSETS_DIR = path.resolve('assets');
 const GLOBAL_CSS = path.join(SRC_DIR, 'index.css');
 
-// Check for watch mode
 const WATCH_MODE = process.argv.includes('--watch');
 
-// Determine build concurrency from environment or CPU count
 const BUILD_CONCURRENCY =
   parseInt(process.env.BUILD_CONCURRENCY || '', 10) ||
   Math.max(1, Math.floor(os.cpus().length / 2));
@@ -71,7 +69,6 @@ async function buildWidget(entryPath: string): Promise<{ name: string; jsPath: s
 
   console.log(`Building: ${name}`);
 
-  // Collect CSS files for this widget
   const perEntryCss = fg.sync('**/*.css', {
     cwd: entryDir,
     absolute: true,
@@ -79,23 +76,19 @@ async function buildWidget(entryPath: string): Promise<{ name: string; jsPath: s
     ignore: ['**/*.module.css'],
   });
 
-  // Include global CSS if it exists
   const globalCss = fs.existsSync(GLOBAL_CSS) ? [GLOBAL_CSS] : [];
 
-  // Final CSS list (global first for predictable cascade)
   const cssToInclude = [...globalCss, ...perEntryCss].filter((p) =>
     fs.existsSync(p)
   );
 
   const virtualId = `\0virtual-entry:${entryAbs}`;
 
-  // Vite build configuration
   const config: InlineConfig = {
     plugins: [
       cssInjectionPlugin(virtualId, entryAbs, cssToInclude),
       tailwindcss(),
       react(),
-      // Production compression (skip in watch mode for speed)
       ...(WATCH_MODE ? [] : [
         compression({ algorithm: 'gzip', ext: '.gz' }),
         compression({ algorithm: 'brotliCompress', ext: '.br' }),
@@ -162,11 +155,9 @@ function generateHashedAssets(builtWidgets: Array<{ name: string; jsPath: string
     (process.env.NODE_ENV === 'production' ? '/assets' : 'http://localhost:4444');
 
   for (const { name, jsPath, cssPath } of builtWidgets) {
-    // Generate content-based hashes
     const jsHash = generateContentHash(jsPath);
     const cssHash = fs.existsSync(cssPath) ? generateContentHash(cssPath) : null;
 
-    // Create hashed copies
     const jsHashedPath = path.join(ASSETS_DIR, `${name}-${jsHash}.js`);
     const cssHashedPath = cssHash ? path.join(ASSETS_DIR, `${name}-${cssHash}.css`) : null;
 
@@ -180,7 +171,6 @@ function generateHashedAssets(builtWidgets: Array<{ name: string; jsPath: string
       console.log(`  ${name}.css → ${name}-${cssHash}.css`);
     }
 
-    // Generate HTML template with preload hints
     const html = `<!doctype html>
 <html>
 <head>
@@ -197,11 +187,9 @@ function generateHashedAssets(builtWidgets: Array<{ name: string; jsPath: string
 </body>
 </html>`;
 
-    // Write hashed HTML
     const htmlHashedPath = path.join(ASSETS_DIR, `${name}-${jsHash}.html`);
     fs.writeFileSync(htmlHashedPath, html, 'utf-8');
 
-    // Write unhashed HTML (points to hashed assets)
     const htmlPath = path.join(ASSETS_DIR, `${name}.html`);
     fs.writeFileSync(htmlPath, html, 'utf-8');
 
@@ -215,13 +203,11 @@ function generateHashedAssets(builtWidgets: Array<{ name: string; jsPath: string
 async function main() {
   console.log(`Starting widget ${WATCH_MODE ? 'watch' : 'build'} process...\n`);
 
-  // Clean assets directory (only on initial build, not in watch mode)
   if (!WATCH_MODE && fs.existsSync(ASSETS_DIR)) {
     fs.rmSync(ASSETS_DIR, { recursive: true, force: true });
   }
   fs.mkdirSync(ASSETS_DIR, { recursive: true });
 
-  // Discover widget entry points
   const entries = fg.sync('src/**/index.{tsx,jsx}', {
     cwd: WIDGETS_DIR,
     absolute: false,
@@ -239,7 +225,6 @@ async function main() {
   });
   console.log();
 
-  // Build widgets in parallel with concurrency limit
   const limit = pLimit(BUILD_CONCURRENCY);
 
   const buildPromises = entries.map((entry) =>
@@ -248,14 +233,12 @@ async function main() {
 
   const builtWidgets = await Promise.all(buildPromises);
 
-  // Generate hashed assets and HTML templates
   generateHashedAssets(builtWidgets);
 
   if (WATCH_MODE) {
     console.log('\n✨ Initial build complete! Watching for changes...\n');
     console.log(`Assets directory: ${ASSETS_DIR}`);
     console.log(`Total widgets: ${builtWidgets.length}\n`);
-    // Keep process alive in watch mode
     process.stdin.resume();
   } else {
     console.log('\nBuild complete!\n');
@@ -264,7 +247,6 @@ async function main() {
   }
 }
 
-// Run
 main().catch((err) => {
   console.error('\nBuild failed:', err);
   process.exit(1);

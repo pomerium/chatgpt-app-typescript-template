@@ -27,14 +27,12 @@ export function EchoMarquee({ message, speed = 50 }: EchoMarqueeProps) {
   useEffect(() => {
     if (!marqueeRef.current) return;
 
-    // Calculate animation duration based on speed
-    const width = marqueeRef.current.scrollWidth / 2; // Divide by 2 because we duplicate the message
+    const width = marqueeRef.current.scrollWidth / 2;
     const duration = width / speed;
 
     marqueeRef.current.style.setProperty('--marquee-duration', `${duration}s`);
   }, [message, speed]);
 
-  // Duplicate message for seamless loop
   const displayMessage = `${message}`;
 
   return (

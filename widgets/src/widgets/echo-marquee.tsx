@@ -30,18 +30,15 @@ export interface EchoToolOutput {
  * - Max height constraints
  */
 export default function App() {
-  // Read host state via useOpenAiGlobal hook
   const toolOutput = useOpenAiGlobal('toolOutput');
   const theme = useOpenAiGlobal('theme');
   const displayMode = useOpenAiGlobal('displayMode');
   const safeArea = useOpenAiGlobal('safeArea');
   const maxHeight = useOpenAiGlobal('maxHeight');
 
-  // Local state for callTool result
   const [callResult, setCallResult] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Extract echoed message from toolOutput
   const message =
     (toolOutput as { echoedMessage?: string })?.echoedMessage ||
     'No message yet';
@@ -79,7 +76,6 @@ export default function App() {
     }
   };
 
-  // Apply safe area padding for mobile/PiP modes
   const containerStyle = {
     paddingTop: safeArea?.insets?.top || 0,
     paddingBottom: safeArea?.insets?.bottom || 0,

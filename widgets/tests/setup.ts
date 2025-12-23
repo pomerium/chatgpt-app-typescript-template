@@ -1,6 +1,5 @@
 import '@testing-library/jest-dom/vitest';
 
-// Mock window.openai for tests
 global.window.openai = {
   theme: 'light',
   displayMode: 'inline',

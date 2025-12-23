@@ -21,12 +21,9 @@ import type { WidgetState } from '../types/openai.js';
 export function useWidgetState<T extends WidgetState>(
   initialState: T | (() => T)
 ): [T | null, (value: T | ((prev: T | null) => T)) => void] {
-  // Read initial state from host
   const hostWidgetState = useOpenAiGlobal('widgetState');
 
-  // Local state management
   const [localState, setLocalState] = useState<T | null>(() => {
-    // If host has state, use it; otherwise use initialState
     if (hostWidgetState) {
       return hostWidgetState as T;
     }
@@ -36,14 +33,12 @@ export function useWidgetState<T extends WidgetState>(
       : initialState;
   });
 
-  // Sync host state changes to local state
   useEffect(() => {
     if (hostWidgetState) {
       setLocalState(hostWidgetState as T);
     }
   }, [hostWidgetState]);
 
-  // Set widget state with host synchronization
   const setWidgetState = useCallback(
     (value: T | ((prev: T | null) => T)) => {
       setLocalState((prev) => {
@@ -51,7 +46,6 @@ export function useWidgetState<T extends WidgetState>(
           ? (value as (prev: T | null) => T)(prev)
           : value;
 
-        // Sync with host
         window.openai?.setWidgetState?.(newState).catch((err) => {
           console.error('Failed to sync widget state with host:', err);
         });

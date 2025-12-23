@@ -20,7 +20,6 @@ export default defineConfig({
     }),
     widgetDiscoveryPlugin(),
     tailwindcss(),
-    // Production compression only
     ...(isProd
       ? [
           compression({
@@ -39,17 +38,16 @@ export default defineConfig({
     strictPort: true,
     cors: true,
     fs: {
-      // Allow serving files from the assets directory (built widgets)
       allow: ['..'],
     },
   },
-  publicDir: '../assets', // Serve built assets in dev mode
+  publicDir: '../assets',
   build: {
     target: 'es2023',
     outDir: '../assets',
     emptyOutDir: false,
     sourcemap: true,
-    minify: isProd ? 'esbuild' : false, // Use esbuild instead of terser
+    minify: isProd ? 'esbuild' : false,
     ...(isProd
       ? {
           terserOptions: {
@@ -63,7 +61,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         format: 'es',
-        manualChunks: undefined, // Single bundle per widget
+        manualChunks: undefined,
       },
     },
     chunkSizeWarningLimit: 500,

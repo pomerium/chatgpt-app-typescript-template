@@ -35,7 +35,6 @@ describe('Echo Tool', () => {
       const input = { message: 'Test message' };
       const validated = EchoToolInputSchema.parse(input);
 
-      // Simulate tool output
       const output = {
         echoedMessage: validated.message,
         timestamp: new Date().toISOString(),

@@ -22,7 +22,6 @@ export function useOpenAiGlobal<K extends keyof OpenAiGlobals>(
 ): OpenAiGlobals[K] | null {
   return useSyncExternalStore(
     (onChange) => {
-      // Subscribe to SET_GLOBALS_EVENT_TYPE changes from ChatGPT host
       const handleSetGlobal = (event: Event) => {
         const customEvent = event as SetGlobalsEvent;
         const value = customEvent.detail.globals[key];
@@ -38,7 +37,6 @@ export function useOpenAiGlobal<K extends keyof OpenAiGlobals>(
         window.removeEventListener(SET_GLOBALS_EVENT_TYPE, handleSetGlobal);
       };
     },
-    // getSnapshot - return current value
     () => {
       return window.openai?.[key] ?? null;
     },

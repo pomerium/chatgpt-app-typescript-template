@@ -31,15 +31,12 @@ import {
   type WidgetDescriptor,
 } from './types.js';
 
-// Load environment variables
 config();
 
-// Setup paths
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const ASSETS_DIR = path.resolve(ROOT_DIR, 'assets');
 
-// Configuration
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
@@ -47,7 +44,6 @@ const SESSION_MAX_AGE = parseInt(process.env.SESSION_MAX_AGE || '3600000', 10);
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 const WIDGET_PORT = parseInt(process.env.WIDGET_PORT || '4444', 10);
 
-// Setup pino logger
 const logger = pino({
   level: LOG_LEVEL,
   transport:
@@ -63,7 +59,6 @@ const logger = pino({
       : undefined,
 });
 
-// Widget descriptor
 const ECHO_WIDGET: WidgetDescriptor = {
   id: 'echo-marquee',
   title: 'Echo Marquee',
@@ -74,7 +69,6 @@ const ECHO_WIDGET: WidgetDescriptor = {
  * Read widget HTML - from Vite dev server in development, from assets in production
  */
 async function readWidgetHtml(widgetId: string): Promise<string> {
-  // In development, fetch from Vite dev server
   if (NODE_ENV === 'development') {
     try {
       const url = `http://localhost:${WIDGET_PORT}/${widgetId}.html`;
@@ -93,11 +87,9 @@ async function readWidgetHtml(widgetId: string): Promise<string> {
         { err, widgetId, widgetPort: WIDGET_PORT },
         'Failed to fetch from Vite dev server, falling back to built assets'
       );
-      // Fall through to read from assets
     }
   }
 
-  // In production or if dev server fetch failed, read from assets
   if (!fs.existsSync(ASSETS_DIR)) {
     throw new Error(
       `Widget assets not found. Expected directory ${ASSETS_DIR}. Run "npm run build:widgets" before starting the server.`
@@ -132,7 +124,6 @@ function createMcpServer(sessionId: string): Server {
 
   const sessionLogger = logger.child({ sessionId });
 
-  // Define echo tool
   const echoTool: Tool = {
     name: 'echo',
     description: "Echoes back the user's message in a scrolling marquee widget",
@@ -153,7 +144,6 @@ function createMcpServer(sessionId: string): Server {
     },
   };
 
-  // List tools handler
   server.setRequestHandler(
     ListToolsRequestSchema,
     async (_request: ListToolsRequest) => {
@@ -164,7 +154,6 @@ function createMcpServer(sessionId: string): Server {
     }
   );
 
-  // List resources handler
   server.setRequestHandler(
     ListResourcesRequestSchema,
     async (_request: ListResourcesRequest) => {
@@ -183,7 +172,6 @@ function createMcpServer(sessionId: string): Server {
     }
   );
 
-  // List resource templates handler
   server.setRequestHandler(
     ListResourceTemplatesRequestSchema,
     async (_request: ListResourceTemplatesRequest) => {
@@ -207,7 +195,6 @@ function createMcpServer(sessionId: string): Server {
     }
   );
 
-  // Call tool handler
   server.setRequestHandler(
     CallToolRequestSchema,
     async (request: CallToolRequest) => {
@@ -222,10 +209,8 @@ function createMcpServer(sessionId: string): Server {
       }
 
       try {
-        // Validate input with Zod
         const validatedInput = EchoToolInputSchema.parse(args || {});
 
-        // Create structured output
         const output: EchoToolOutput = {
           echoedMessage: validatedInput.message,
           timestamp: new Date().toISOString(),
@@ -257,7 +242,6 @@ function createMcpServer(sessionId: string): Server {
     }
   );
 
-  // Read resource handler - Critical for widget loading
   server.setRequestHandler(
     ReadResourceRequestSchema,
     async (request: ReadResourceRequest) => {
@@ -265,7 +249,6 @@ function createMcpServer(sessionId: string): Server {
 
       sessionLogger.debug({ uri }, 'Reading resource');
 
-      // Handle widget resources
       if (uri.startsWith('ui://')) {
         const widgetId = uri.replace('ui://', '');
 
@@ -317,13 +300,10 @@ async function main() {
     'Starting ChatGPT App Template server'
   );
 
-  // Create Express app
   const app = express();
 
-  // Add pino HTTP logging middleware
   app.use(pinoHttp({ logger }));
 
-  // CORS middleware
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', CORS_ORIGIN);
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -337,16 +317,12 @@ async function main() {
     next();
   });
 
-  // Parse JSON bodies
   app.use(express.json());
 
-  // Serve static assets (widgets)
   app.use('/assets', express.static(ASSETS_DIR));
 
-  // Session manager
   const sessionManager = new SessionManager(logger);
 
-  // Health check endpoint
   app.get('/health', (_req, res) => {
     res.json({
       status: 'ok',
@@ -356,7 +332,6 @@ async function main() {
     });
   });
 
-  // Unified MCP endpoint for HttpStreamable transport (GET/POST/DELETE)
   app.all('/mcp', async (req, res) => {
     const sessionId = req.headers['mcp-session-id'] as string | undefined;
 
@@ -365,7 +340,6 @@ async function main() {
     try {
       let session = sessionId ? sessionManager.get(sessionId) : undefined;
 
-      // Handle initialization request (no session ID + POST with initialize message)
       if (
         !sessionId &&
         req.method === 'POST' &&
@@ -373,20 +347,16 @@ async function main() {
       ) {
         logger.info('Initializing new session');
 
-        // Create event store for resumability
         const eventStore = new InMemoryEventStore();
 
-        // Create transport with session ID generator
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => uuidv4(),
           eventStore,
           onsessioninitialized: (newSessionId) => {
             logger.info({ sessionId: newSessionId }, 'Session initialized');
-            // Session will be stored after transport is connected below
           },
         });
 
-        // Set up close handler to clean up session
         transport.onclose = () => {
           const sid = transport.sessionId;
           if (sid) {
@@ -395,16 +365,12 @@ async function main() {
           }
         };
 
-        // Create server and connect to transport BEFORE handling request
-        // This allows the transport to route responses through the connected server
-        const tempSessionId = 'initializing'; // Temporary ID until session is initialized
+        const tempSessionId = 'initializing';
         const server = createMcpServer(tempSessionId);
         await server.connect(transport);
 
-        // Handle the initialization request (this will trigger onsessioninitialized)
         await transport.handleRequest(req, res, req.body);
 
-        // Store the session after initialization with the actual session ID
         const actualSessionId = transport.sessionId;
         if (actualSessionId) {
           sessionManager.create(actualSessionId, server, transport);
@@ -413,13 +379,11 @@ async function main() {
         return;
       }
 
-      // Reuse existing session
       if (session) {
         await session.transport.handleRequest(req, res, req.body);
         return;
       }
 
-      // Invalid request - no session ID or not an initialization request
       logger.warn({ sessionId, method: req.method }, 'Invalid MCP request');
       res.status(400).json({
         jsonrpc: '2.0',
@@ -444,15 +408,12 @@ async function main() {
     }
   });
 
-  // Cleanup stale sessions periodically
   const cleanupInterval = setInterval(() => {
     sessionManager.cleanup(SESSION_MAX_AGE);
-  }, 60000); // Every minute
+  }, 60000);
 
-  // Create HTTP server
   const httpServer = createServer(app);
 
-  // Graceful shutdown
   const shutdown = async () => {
     logger.info('Shutting down server...');
 
@@ -470,7 +431,6 @@ async function main() {
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 
-  // Start listening
   httpServer.listen(PORT, () => {
     logger.info(
       {
@@ -483,7 +443,6 @@ async function main() {
   });
 }
 
-// Start server
 main().catch((err) => {
   logger.fatal({ err }, 'Failed to start server');
   process.exit(1);
