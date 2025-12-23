@@ -1,23 +1,19 @@
 # ChatGPT App Template
 
-> Minimal, production-ready template for building ChatGPT apps with the OpenAI Apps SDK
-
-A well-architected starter template demonstrating best practices for building ChatGPT apps using the Model Context Protocol (MCP) with React widgets.
-
-**Template Score: 85%+** against [OpenAI Apps SDK requirements](https://developers.openai.com/apps-sdk/)
+A well-architected starter template demonstrating best practices for building [ChatGPT apps](https://developers.openai.com/apps-sdk/) using the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) with [React](https://react.dev/) widgets. It leverages TypeScript, Tailwind CSS v4, Pino logging, Storybook, and Vitest for a robust development experience.
 
 ## Features
 
 - **MCP Server** - Node.js server with base `Server` class (preserves `_meta` fields)
-- **Echo Tool** - Example tool with Zod 4 validation and widget response
+- **Echo Tool** - Example tool with [Zod](https://zod.dev/) validation and widget response
 - **React Widgets** - Interactive marquee component with `callTool` demo
-- **Pino Logging** - Structured logging with pretty printing in development
+- **[Pino](https://getpino.io/) Logging** - Structured logging with pretty printing in development
 - **TypeScript** - Strict mode with ES2023 target
-- **Tailwind CSS v4** - Modern styling with dark mode support
-- **Storybook** - Component development with a11y addon
-- **Testing** - Vitest for server and widgets with accessibility checks
+- **[Tailwind CSS v4](https://tailwindcss.com/)** - Modern styling with dark mode support
+- **[Storybook](https://storybook.js.org/)** - Component development with a11y addon
+- **Testing** - [Vitest](https://vitest.dev/) for server and widgets with accessibility checks
 - **Build Optimizations** - Parallel builds, content hashing, compression
-- **Docker** - Multi-stage builds with health checks
+- **[Docker](https://www.docker.com/)** - Multi-stage builds with health checks
 - **Production Ready** - Session management, graceful shutdown, error handling
 
 ## Architecture
@@ -42,37 +38,207 @@ graph TD
 
 ## Quick Start
 
+**Setup time: ~5 minutes (first time)**
+
 ### Prerequisites
 
-- **Node.js 22+** (required for ES2023 support)
+- **[Node.js](https://nodejs.org/) 22+** (required for ES2023 support)
+  - Verify: `node -v` (should show v22.0.0 or higher)
 - **npm 10+** (ships with Node 22)
-- **Tunnel service** (for testing with ChatGPT)
+  - Verify: `npm -v` (should show v10.0.0 or higher)
 
-### Installation
+**Supported platforms:** macOS, Linux, Windows (via WSL2)
+
+### Installation & Setup
 
 ```bash
-git clone <your-repo-url> chatgpt-app
-cd chatgpt-app
+git clone https://github.com/pomerium/chatgpt-app-typescript-template your-chatgpt-app
+cd your-chatgpt-app
 npm install
+npm run dev
 ```
 
-### Development Workflow
+This starts both the MCP server and widget dev server:
+
+- **MCP Server**: `http://localhost:8080`
+- **Widget Assets**: `http://localhost:4444`
+
+> **Note:** The MCP server is a backend service. To test it, follow the ChatGPT connection steps below or use `npm run inspect` for local testing.
+
+You should see output indicating both servers are running successfully:
+
+```
+❯ npm run dev
+
+> chatgpt-app-typescript-template@1.0.0 dev
+> concurrently "npm run dev:server" "npm run dev:widgets"
+
+[1]
+[1] > chatgpt-app-typescript-template@1.0.0 dev:widgets
+[1] > npm run dev --workspace=widgets
+[1]
+[0]
+[0] > chatgpt-app-typescript-template@1.0.0 dev:server
+[0] > npm run dev --workspace=server
+[0]
+[1]
+[1] > chatgpt-app-widgets@1.0.0 dev
+[1] > vite
+[1]
+[0]
+[0] > chatgpt-app-server@1.0.0 dev
+[0] > tsx watch src/server.ts
+[0]
+[1]
+[1] Found 1 widget(s):
+[1]   - echo-marquee
+[1]
+[1]
+[1]   VITE v6.4.1  ready in 151 ms
+[1]
+[1]   ➜  Local:   http://localhost:4444/
+[1]   ➜  Network: use --host to expose
+[0] [12:45:12] INFO: Starting ChatGPT App Template server
+[0]     port: 8080
+[0]     nodeEnv: "development"
+[0]     logLevel: "info"
+[0]     assetsDir: "/Users/nicktaylor/dev/oss/chatgpt-app-typescript-template/assets"
+[0] [12:45:12] INFO: Server started successfully
+[0]     port: 8080
+[0]     mcpEndpoint: "http://localhost:8080/mcp"
+[0]     healthEndpoint: "http://localhost:8080/health"
+```
+
+### Connect to ChatGPT
+
+To test your app in ChatGPT, you need to expose your local server publicly. The fastest way is using [Pomerium's SSH tunnel](https://www.pomerium.com/docs/tcp/ssh):
+
+**1. Create a public tunnel** (in a new terminal, keep `npm run dev` running):
 
 ```bash
-# 1. Start server (watch mode)
+ssh -R 0 pom.run
+```
+
+**First-time setup:**
+
+1. You'll see a sign-in URL in your terminal:
+
+   ```
+   Please sign in with hosted to continue
+   https://data-plane-us-central1-1.dataplane.pomerium.com/.pomerium/sign_in?user_code=some-code
+   ```
+
+2. Click the link and sign up
+3. Authorize via the Pomerium OAuth flow
+4. Your terminal will display connection details:
+
+![Pomerium SSH Tunnel UI](docs/images/pomerium-tui.png)
+
+**2. Find your public URL:**
+
+Look for the **Port Forward Status** section showing:
+
+- **Status**: `ACTIVE` (tunnel is running)
+- **Remote**: `https://template.first-wallaby-240.pom.run` (your unique URL)
+- **Local**: `http://localhost:8080` (your local server)
+
+**3. Add to ChatGPT:**
+
+1. [Enable ChatGPT apps dev mode](https://platform.openai.com/docs/guides/developer-mode) in your ChatGPT settings
+2. Go to: **Settings → Connectors → Add Connector**
+3. Enter your Remote URL + `/mcp`, e.g. `https://template.first-wallaby-240.pom.run/mcp`
+4. Save the connector
+
+**4. Test it:**
+
+1. Start a new chat in ChatGPT
+2. Add your app to the chat
+3. Send: `echo Hello from my ChatGPT app!`
+4. You should see the message displayed in a scrolling marquee widget
+
+The tunnel stays active as long as the SSH session is running.
+
+### Success! What's Next?
+
+Now that your app is working, you can:
+
+- **[Customize the echo tool](#adding-new-tools)** - Modify the example tool or add your own logic
+- **[Create a new widget](#widget-development)** - Build custom UI components for your tools
+- **[Test locally](#local-testing-with-mcp-inspector)** - Use `npm run inspect` for debugging without ChatGPT
+- **[Deploy to production](#production-deployment)** - Take your app live when ready
+
+## Available Commands
+
+### Development
+
+```bash
+# Start everything (server + widgets in watch mode)
+npm run dev
+
+# Start only MCP server (watch mode)
 npm run dev:server
 
-# 2. Build widgets (in separate terminal)
-npm run build:widgets
+# Start only widget dev server
+npm run dev:widgets
 
-# 3. Test with MCP Inspector
+# Test with MCP Inspector
 npm run inspect
-
-# 4. Run Storybook (optional)
-npm run storybook
 ```
 
-Server runs on `http://localhost:8080/mcp`
+### Building
+
+```bash
+# Full production build (widgets + server)
+npm run build
+
+# Build only widgets
+npm run build:widgets
+
+# Build only server
+npm run build:server
+```
+
+### Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run server tests only
+npm run test:server
+
+# Run widget tests only
+npm run test:widgets
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+### Code Quality
+
+```bash
+# Lint all TypeScript files
+npm run lint
+
+# Format code with Prettier
+npm run format
+
+# Check formatting without modifying
+npm run format:check
+
+# Type check all workspaces
+npm run type-check
+```
+
+### Storybook
+
+```bash
+# Run Storybook dev server
+npm run storybook
+
+# Build Storybook for production
+npm run build:storybook
+```
 
 ### Testing Your App
 
@@ -91,39 +257,21 @@ This opens a browser interface to:
 
 #### 2. Connect from ChatGPT
 
-**Development Testing with SSH Tunnel:**
+For complete ChatGPT connection instructions, see the [Quick Start: Connect to ChatGPT](#connect-to-chatgpt) section above.
 
-Once your project is running in dev mode, create a public URL:
-
-```bash
-ssh -R 0 pom.run
-```
-
-This creates a secure tunnel via Pomerium and displays a terminal UI with your connection details:
-
-![Pomerium SSH Tunnel UI](docs/images/pomerium-tui.png)
-
-Look for the **Port Forward Status** section, which shows:
-
-- **Status**: `ACTIVE` (your tunnel is running)
-- **Remote**: `https://template.xxx-yyy-123.pomerium.app` (your public URL)
-- **Local**: `http://localhost:8080` (your local server)
-
-Use the **Remote** HTTPS URL in ChatGPT's connector settings. The tunnel stays active as long as the SSH session is running.
-
-**Production Setup:**
-
-1. Deploy your server (or use a tunnel service: ngrok, cloudflare tunnel, pomerium, etc.)
-2. In ChatGPT: **Settings → Connectors → Add Connector**
-3. Enter your server URL: `https://your-domain.com/mcp`
-4. Test the `echo` tool in ChatGPT
-
-#### 3. Refresh Connector
-
-After code changes:
+**Already connected?** After making code changes:
 
 1. **Settings → Connectors → Your App → Refresh**
 2. This reloads tool definitions and metadata
+
+**Production Setup:**
+
+When deploying to production:
+
+1. Deploy your server to a public URL (see [Production Deployment](#production-deployment))
+2. In ChatGPT: **Settings → Connectors → Add Connector**
+3. Enter your server URL: `https://your-domain.com/mcp`
+4. Test the `echo` tool in ChatGPT
 
 ## Project Structure
 
@@ -157,7 +305,7 @@ chatgpt-app-template/
 │   ├── .storybook/         # Storybook config
 │   └── package.json        # Widget dependencies
 │
-├── assets/                  # Built widgets (gitignored)
+├── assets/                  # Asset build artifacts
 │   ├── echo-marquee.html
 │   ├── echo-marquee-[hash].js
 │   └── echo-marquee-[hash].css
@@ -497,15 +645,20 @@ return {
 }
 ```
 
-## Testing
+## Testing & Quality Assurance
 
-### Run All Tests
+### Running Tests
 
 ```bash
-npm test              # All tests
-npm run test:server   # Server tests only
-npm run test:widgets  # Widget tests only
-npm test -- --coverage # With coverage
+# Run all tests (server + widgets)
+npm test
+
+# Run specific workspace tests
+npm run test:server
+npm run test:widgets
+
+# Run with coverage report
+npm run test:coverage
 ```
 
 ### Test Structure
@@ -543,7 +696,46 @@ npm run inspect
 #    - structuredContent is correct
 ```
 
-## Deployment
+## Production Deployment
+
+### Building for Production
+
+The production build process compiles widgets with optimizations and prepares the server:
+
+```bash
+# Full production build
+npm run build
+```
+
+This runs:
+
+1. `npm run build:widgets` - Builds optimized widget bundles with content hashing
+2. `npm run build:server` - Compiles TypeScript server code
+
+**Build outputs:**
+
+- `assets/` - Optimized widget bundles (JS/CSS with content hashes)
+- `server/dist/` - Compiled server code
+
+### Manual Deployment
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Build for production
+npm run build
+
+# 3. Start production server
+NODE_ENV=production npm start
+```
+
+The server will:
+
+- Serve MCP on `http://localhost:8080/mcp`
+- Load pre-built widgets from `assets/`
+- Use structured logging (JSON format)
+- Run with production optimizations
 
 ### Docker Deployment
 
@@ -561,28 +753,28 @@ docker-compose -f docker/docker-compose.yml logs -f
 curl http://localhost:8080/health
 ```
 
-### Manual Deployment
-
-```bash
-# 1. Install dependencies
-npm install
-
-# 2. Build
-npm run build
-
-# 3. Start production server
-NODE_ENV=production npm run start
-```
-
 ### Production Checklist
 
+**Environment Variables:**
+
 - Set `NODE_ENV=production`
-- Configure `CORS_ORIGIN` to your domain
-- Set appropriate `LOG_LEVEL` (warn or error)
-- Configure `SESSION_MAX_AGE` for your use case
-- Use a tunnel or deploy to public URL
-- Set up monitoring/alerts
-- Configure CDN for assets (optional)
+- Configure `CORS_ORIGIN` to your domain (not `*`)
+- Set `LOG_LEVEL=warn` or `error` for production
+- Configure `SESSION_MAX_AGE` based on your use case
+- Set `BASE_URL` if using a CDN for widget assets
+
+**Deployment Requirements:**
+
+- Deploy to a publicly accessible URL (ChatGPT requires HTTPS)
+- Ensure `assets/` directory is deployed with the server
+- Configure reverse proxy if needed (nginx, Caddy, etc.)
+- Set up SSL/TLS certificates
+
+**Monitoring:**
+
+- Monitor `/health` endpoint for server status
+- Set up logging aggregation (Pino outputs JSON in production)
+- Configure alerts for errors and performance issues
 
 ## Troubleshooting
 
