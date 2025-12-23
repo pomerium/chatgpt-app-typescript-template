@@ -15,6 +15,7 @@ export type EchoToolInput = z.infer<typeof EchoToolInputSchema>;
 export interface EchoToolOutput {
   echoedMessage: string;
   timestamp: string;
+  [key: string]: unknown;
 }
 
 /**

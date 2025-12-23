@@ -10,13 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import type { EchoToolOutput } from 'chatgpt-app-server/types';
 import '../index.css';
-
-// TODO: this is duplicated from the server project
-export interface EchoToolOutput {
-  echoedMessage: string;
-  timestamp: string;
-}
 
 /**
  * Echo Marquee Widget
@@ -30,7 +25,7 @@ export interface EchoToolOutput {
  * - Max height constraints
  */
 export default function App() {
-  const toolOutput = useOpenAiGlobal('toolOutput');
+  const toolOutput = useOpenAiGlobal<EchoToolOutput>('toolOutput');
   const theme = useOpenAiGlobal('theme');
   const displayMode = useOpenAiGlobal('displayMode');
   const safeArea = useOpenAiGlobal('safeArea');
@@ -39,9 +34,7 @@ export default function App() {
   const [callResult, setCallResult] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const message =
-    (toolOutput as { echoedMessage?: string })?.echoedMessage ||
-    'No message yet';
+  const message = toolOutput?.echoedMessage || 'No message yet';
 
   /**
    * Demonstrate callTool API - call the echo tool from the widget

@@ -18,6 +18,7 @@ import {
   ReadResourceRequestSchema,
   isInitializeRequest,
   type CallToolRequest,
+  type CallToolResult,
   type ListToolsRequest,
   type ListResourcesRequest,
   type ListResourceTemplatesRequest,
@@ -76,11 +77,22 @@ async function readWidgetHtml(widgetId: string): Promise<string> {
       const response = await fetch(url);
       if (!response.ok) {
         const errorText = await response.text();
-        logger.error({ status: response.status, statusText: response.statusText, errorText, url }, 'Vite dev server returned error');
+        logger.error(
+          {
+            status: response.status,
+            statusText: response.statusText,
+            errorText,
+            url,
+          },
+          'Vite dev server returned error'
+        );
         throw new Error(`Failed to fetch widget HTML: ${response.statusText}`);
       }
       const html = await response.text();
-      logger.debug({ url, htmlLength: html.length }, 'Successfully fetched widget HTML');
+      logger.debug(
+        { url, htmlLength: html.length },
+        'Successfully fetched widget HTML'
+      );
       return html;
     } catch (err) {
       logger.warn(
@@ -197,7 +209,7 @@ function createMcpServer(sessionId: string): Server {
 
   server.setRequestHandler(
     CallToolRequestSchema,
-    async (request: CallToolRequest) => {
+    async (request: CallToolRequest): Promise<CallToolResult> => {
       const { name, arguments: args } = request.params;
 
       sessionLogger.info({ toolName: name, args }, 'Tool invoked');
@@ -211,10 +223,10 @@ function createMcpServer(sessionId: string): Server {
       try {
         const validatedInput = EchoToolInputSchema.parse(args || {});
 
-        const output: EchoToolOutput = {
+        const output = {
           echoedMessage: validatedInput.message,
           timestamp: new Date().toISOString(),
-        };
+        } satisfies EchoToolOutput;
 
         sessionLogger.info({ output }, 'Tool execution successful');
 

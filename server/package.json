@@ -4,6 +4,10 @@
   "description": "MCP server for ChatGPT app template",
   "type": "module",
   "main": "dist/server.js",
+  "exports": {
+    ".": "./dist/server.js",
+    "./types": "./src/types.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
