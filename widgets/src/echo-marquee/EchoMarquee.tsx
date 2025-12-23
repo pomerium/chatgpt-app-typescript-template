@@ -35,7 +35,7 @@ export function EchoMarquee({ message, speed = 50 }: EchoMarqueeProps) {
   }, [message, speed]);
 
   // Duplicate message for seamless loop
-  const displayMessage = `${message} • ${message} • ${message} • `;
+  const displayMessage = `${message}`;
 
   return (
     <div
