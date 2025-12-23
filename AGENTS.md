@@ -130,13 +130,11 @@ The server uses `SessionManager` (server/src/utils/session.ts) to track MCP sess
 
 ### Widget Build System
 
-Vite auto-discovers and builds widgets via a custom plugin with **automatic mounting**:
+Vite auto-discovers and builds widgets via a custom plugin:
 
 - Scans `widgets/src/widgets/*.{tsx,jsx}` for widget entry points
 - Widget name comes from the filename (e.g., `echo-marquee.tsx` → `echo-marquee` widget)
-- **Widgets just export their component** - no mounting code needed
-- Build system creates virtual entry modules that handle mounting automatically
-- Virtual modules inject `StrictMode` wrapper and `ReactDOM.createRoot()` mounting logic
+- **Widgets must include their own mounting code** at the bottom of the file
 - Generates content-hashed assets (e.g., `echo-marquee-a1b2c3d4.js`)
 - Creates HTML templates with preload hints that reference hashed assets
 - Both hashed and unhashed filenames are generated for flexibility
@@ -147,7 +145,7 @@ Vite auto-discovers and builds widgets via a custom plugin with **automatic moun
 ```
 widgets/src/
   ├── widgets/              # Widget entry points (auto-discovered)
-  │   ├── echo-marquee.tsx  # Widget entry - just exports component
+  │   ├── echo-marquee.tsx  # Widget entry - includes mounting code
   │   └── counter.tsx       # Another widget entry
   ├── echo-marquee/         # Widget-specific components
   │   ├── EchoMarquee.tsx
@@ -163,19 +161,29 @@ widgets/src/
 1. Create `widgets/src/widgets/my-widget.tsx`:
 
 ```tsx
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import { useOpenAiGlobal } from '../hooks/use-openai-global';
 
-export default function MyWidget() {
+function MyWidget() {
   const toolOutput = useOpenAiGlobal('toolOutput');
   return <div>{JSON.stringify(toolOutput)}</div>;
+}
+
+// Mounting code - required at the bottom of each widget file
+const rootElement = document.getElementById('my-widget-root');
+if (rootElement) {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <MyWidget />
+    </StrictMode>
+  );
 }
 ```
 
 2. Add supporting components in `widgets/src/my-widget/` if needed
 3. Widget automatically discovered and built in dev mode
 4. Widget will be available as `ui://my-widget`
-
-**No mounting code needed** - the build system generates virtual entry modules that handle mounting:
 
 ### Widget Development Patterns
 
@@ -221,14 +229,14 @@ This ensures type safety and runtime validation.
 
 ### Widget Structure
 
-- `widgets/src/widgets/{widget-name}.tsx` - Widget entry point (auto-discovered, just exports component)
+- `widgets/src/widgets/{widget-name}.tsx` - Widget entry point (auto-discovered, includes mounting code)
 - `widgets/src/{widget-name}/{Component}.tsx` - Supporting components for the widget
 - `widgets/src/{widget-name}/styles.css` - Component-specific styles
 - `widgets/src/{widget-name}/{Component}.stories.tsx` - Storybook stories
 - `widgets/src/components/` - Shared components (including shadcn/ui)
 - `widgets/src/hooks/` - Shared React hooks for OpenAI API integration
 - `widgets/src/types/openai.d.ts` - TypeScript definitions for window.openai
-- `widgets/vite-plugin-widgets.ts` - Custom Vite plugin for auto-discovery and mounting
+- `widgets/vite-plugin-widgets.ts` - Custom Vite plugin for auto-discovery and building
 
 ### Generated Assets
 
@@ -268,7 +276,25 @@ The inspector allows testing tool invocations and verifying widget resources wit
 
 #### Connecting from ChatGPT
 
-1. Deploy server or use tunnel service (ngrok, cloudflare tunnel, etc.)
+**Development Testing with Pomerium SSH Tunnel:**
+
+Once your project is running in dev mode, create a public URL using Pomerium's SSH reverse tunnel:
+
+```bash
+ssh -R 0 pom.run
+```
+
+This creates a secure tunnel and displays a terminal UI with your connection details. Look for the **Port Forward Status** section, which shows:
+
+- **Status**: `ACTIVE` (your tunnel is running)
+- **Remote**: `https://template.xxx-yyy-123.pomerium.app` (your public URL)
+- **Local**: `http://localhost:8080` (your local server)
+
+Use the **Remote** HTTPS URL in ChatGPT's connector settings. The tunnel stays active as long as the SSH session is running.
+
+**Production Setup:**
+
+1. Deploy server or use tunnel service (ngrok, cloudflare tunnel, pomerium, etc.)
 2. In ChatGPT: Settings → Connectors → Add Connector
 3. Enter server URL: `https://your-domain.com/mcp`
 4. After code changes: Settings → Connectors → Your App → Refresh
@@ -284,8 +310,7 @@ WIDGET_PORT=4444               # Widget dev server port (default: 4444)
 LOG_LEVEL=info                 # Pino log level: fatal, error, warn, info, debug, trace
 SESSION_MAX_AGE=3600000        # Session cleanup threshold (1 hour in ms)
 CORS_ORIGIN=*                  # CORS origin (set to domain in production)
-ASSET_BASE_URL=                # Optional CDN URL for widget assets
-BUILD_CONCURRENCY=             # Parallel widget builds (default: CPU count / 2)
+BASE_URL=                      # Optional CDN URL for widget assets
 ```
 
 Requirements:
@@ -339,7 +364,7 @@ docker-compose -f docker/docker-compose.yml up -d
 - Configure `CORS_ORIGIN` to your domain (not `*`)
 - Use `LOG_LEVEL=warn` or `error` for production
 - Set appropriate `SESSION_MAX_AGE` for your use case
-- Configure `ASSET_BASE_URL` if using CDN
+- Configure `BASE_URL` if using CDN
 - Deploy to publicly accessible URL (ChatGPT requires HTTPS in production)
 
 ## Important Notes for AI Assistants

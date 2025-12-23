@@ -96,7 +96,29 @@ This opens a browser interface to:
 
 #### 2. Connect from ChatGPT
 
-1. Deploy your server (or use a tunnel service for local dev)
+**Development Testing with SSH Tunnel:**
+
+Once your project is running in dev mode, create a public URL:
+
+```bash
+ssh -R 0 pom.run
+```
+
+This creates a secure tunnel via Pomerium and displays a terminal UI with your connection details:
+
+![Pomerium SSH Tunnel UI](docs/images/pomerium-tui.png)
+
+Look for the **Port Forward Status** section, which shows:
+
+- **Status**: `ACTIVE` (your tunnel is running)
+- **Remote**: `https://template.xxx-yyy-123.pomerium.app` (your public URL)
+- **Local**: `http://localhost:8080` (your local server)
+
+Use the **Remote** HTTPS URL in ChatGPT's connector settings. The tunnel stays active as long as the SSH session is running.
+
+**Production Setup:**
+
+1. Deploy your server (or use a tunnel service: ngrok, cloudflare tunnel, pomerium, etc.)
 2. In ChatGPT: **Settings → Connectors → Add Connector**
 3. Enter your server URL: `https://your-domain.com/mcp`
 4. Test the `echo` tool in ChatGPT
@@ -125,7 +147,7 @@ chatgpt-app-template/
 ├── widgets/                 # React widgets
 │   ├── src/
 │   │   ├── widgets/
-│   │   │   └── echo-marquee.tsx   # Widget entry (auto-discovered)
+│   │   │   └── echo-marquee.tsx   # Widget entry (includes mounting code)
 │   │   ├── echo-marquee/
 │   │   │   ├── EchoMarquee.tsx    # Shared components
 │   │   │   ├── EchoMarquee.stories.tsx
@@ -204,9 +226,11 @@ Create `widgets/src/widgets/my-widget.tsx`:
 
 ```tsx
 // widgets/src/widgets/my-widget.tsx
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import { useOpenAiGlobal } from '../hooks/use-openai-global';
 
-export default function MyWidget() {
+function MyWidget() {
   const toolOutput = useOpenAiGlobal('toolOutput');
   const theme = useOpenAiGlobal('theme');
 
@@ -217,9 +241,17 @@ export default function MyWidget() {
     </div>
   );
 }
-```
 
-**That's it!** No mounting code needed - the build system handles it automatically.
+// Mounting code - required at the bottom of each widget file
+const rootElement = document.getElementById('my-widget-root');
+if (rootElement) {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <MyWidget />
+    </StrictMode>
+  );
+}
+```
 
 ### 4. Register Widget Resource
 
@@ -247,26 +279,38 @@ npm run build:widgets
 npm run dev:server
 ```
 
-The build script auto-discovers widgets in `widgets/src/widgets/*.{tsx,jsx}` and automatically handles mounting
+The build script auto-discovers widgets in `widgets/src/widgets/*.{tsx,jsx}` and bundles them with their mounting code
 
 ## Widget Development
 
 ### Widget Pattern
 
-Widgets are simple React components - **no mounting code required**:
+Widgets include both the component and mounting code:
 
 **1. Create widget entry point** in `widgets/src/widgets/[name].tsx`:
 
 ```tsx
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import { useOpenAiGlobal } from '../hooks/use-openai-global';
 
-export default function MyWidget() {
+function MyWidget() {
   const toolOutput = useOpenAiGlobal('toolOutput');
   return <div>Widget content</div>;
 }
+
+// Mounting code - required
+const rootElement = document.getElementById('my-widget-root');
+if (rootElement) {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <MyWidget />
+    </StrictMode>
+  );
+}
 ```
 
-**2. Build automatically discovers and mounts it**:
+**2. Build discovers and bundles widget**:
 
 ```bash
 npm run build:widgets
@@ -277,8 +321,7 @@ npm run build:widgets
 The build system:
 
 - Auto-discovers all files in `widgets/src/widgets/*.{tsx,jsx}`
-- Generates virtual entry points with mounting code
-- Injects `StrictMode` wrapper and DOM mounting logic
+- Bundles the component and mounting code together
 - Creates content-hashed bundles and HTML templates
 
 ### window.openai API Reference
@@ -331,10 +374,11 @@ await window.openai?.requestClose();
 
 ```tsx
 // widgets/src/widgets/my-widget.tsx
-import { useState } from 'react';
+import { StrictMode, useState } from 'react';
+import { createRoot } from 'react-dom/client';
 import { useOpenAiGlobal } from '../hooks/use-openai-global';
 
-export default function MyWidget() {
+function MyWidget() {
   const toolOutput = useOpenAiGlobal('toolOutput');
   const theme = useOpenAiGlobal('theme');
   const safeArea = useOpenAiGlobal('safeArea');
@@ -353,9 +397,17 @@ export default function MyWidget() {
     </div>
   );
 }
-```
 
-**Note**: Just export the component as default - no mounting code needed!
+// Mounting code - required at the bottom of each widget file
+const rootElement = document.getElementById('my-widget-root');
+if (rootElement) {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <MyWidget />
+    </StrictMode>
+  );
+}
+```
 
 ## Configuration
 
@@ -376,10 +428,7 @@ SESSION_MAX_AGE=3600000 # 1 hour in milliseconds
 CORS_ORIGIN=*
 
 # Asset Base URL (for CDN)
-# ASSET_BASE_URL=https://cdn.example.com/assets
-
-# Build Configuration
-# BUILD_CONCURRENCY=4   # Parallel widget builds (default: CPU count / 2)
+# BASE_URL=https://cdn.example.com/assets
 ```
 
 ### Critical Configuration Notes
