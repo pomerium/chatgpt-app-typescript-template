@@ -15,8 +15,11 @@ export default defineConfig({
     },
   },
   plugins: [
-    react(), // React plugin first to handle JSX transforms
-    widgetDiscoveryPlugin(), // Then widget discovery
+    react({
+      // Try babel mode which may be more lenient with Fast Refresh
+      jsxRuntime: 'automatic',
+    }), // React plugin FIRST to set up Fast Refresh correctly
+    widgetDiscoveryPlugin(), // Widget discovery after React
     tailwindcss(),
     // Production compression only
     ...(isProd
@@ -36,7 +39,12 @@ export default defineConfig({
     port: widgetPort,
     strictPort: true,
     cors: true,
+    fs: {
+      // Allow serving files from the assets directory (built widgets)
+      allow: ['..'],
+    },
   },
+  publicDir: '../assets', // Serve built assets in dev mode
   build: {
     target: 'es2023',
     outDir: '../assets',
