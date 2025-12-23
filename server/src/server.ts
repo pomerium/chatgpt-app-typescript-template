@@ -149,6 +149,16 @@ function createMcpServer(sessionId: string): Server {
       },
       required: ['message'],
     },
+    // MCP tool annotations help ChatGPT understand tool behavior:
+    // - readOnlyHint: If true, the tool does not modify its environment
+    // - destructiveHint: If true, the tool may perform destructive updates
+    // - idempotentHint: If true, repeated calls with same args have no additional effect
+    // - openWorldHint: If true, tool interacts with external entities (like the web or external systems)
+    // See: https://www.nickyt.co/blog/quick-fix-my-mcp-tools-were-showing-as-write-tools-in-chatgpt-dev-mode-3id9/
+    annotations: {
+      readOnlyHint: true,
+      openWorldHint: true,
+    },
     _meta: {
       'openai/outputTemplate': ECHO_WIDGET.uri,
       'openai/widgetAccessible': true,

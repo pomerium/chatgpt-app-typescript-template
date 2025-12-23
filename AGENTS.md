@@ -14,53 +14,59 @@ npm workspaces split the codebase: `server/` is the MCP backend, `widgets/` hous
 
 ## Development Commands
 
-### Primary Development Workflow
+### Quick Start
+
+**Fastest way to get up and running:**
 
 ```bash
-# Start server in watch mode
-npm run dev:server
-
-# Serve widgets via Vite dev server on port 4444
-npm run dev:widgets
-
-# Alternative: Build widgets (one-time build)
-npm run build:widgets
-
-# Test with MCP Inspector (requires server + widgets)
-npm run inspect
-
-# Run Storybook for widget development
-npm run storybook
+npm install
+npm run dev
 ```
 
-### Building & Testing
+This starts both the MCP server (`http://localhost:8080`) and widget dev server (`http://localhost:4444`).
+
+### All Available Commands
+
+**Development:**
 
 ```bash
-# Full production build (widgets then server)
-npm run build
-
-# Run all tests
-npm test
-
-# Run specific workspace tests
-npm run test:server
-npm run test:widgets
-
-# Type checking across all workspaces
-npm run type-check
+npm run dev           # Start everything (server + widgets in watch mode)
+npm run dev:server    # Start only MCP server (watch mode)
+npm run dev:widgets   # Start only widget dev server
+npm run inspect       # Test with MCP Inspector
 ```
 
-### Code Quality
+**Building:**
 
 ```bash
-# Lint TypeScript files
-npm run lint
+npm run build         # Full production build (widgets + server)
+npm run build:widgets # Build only widgets
+npm run build:server  # Build only server
+```
 
-# Format code with Prettier
-npm run format
+**Testing:**
 
-# Check formatting without modifying files
-npm run format:check
+```bash
+npm test              # Run all tests
+npm run test:server   # Run server tests only
+npm run test:widgets  # Run widget tests only
+npm run test:coverage # Run tests with coverage
+```
+
+**Code Quality:**
+
+```bash
+npm run lint          # Lint TypeScript files
+npm run format        # Format code with Prettier
+npm run format:check  # Check formatting without modifying
+npm run type-check    # Type check all workspaces
+```
+
+**Storybook:**
+
+```bash
+npm run storybook        # Run Storybook dev server
+npm run build:storybook  # Build Storybook for production
 ```
 
 ## Key Architectural Patterns
@@ -278,19 +284,38 @@ The inspector allows testing tool invocations and verifying widget resources wit
 
 **Development Testing with Pomerium SSH Tunnel:**
 
-Once your project is running in dev mode, create a public URL using Pomerium's SSH reverse tunnel:
+With your project running (`npm run dev`), create a public URL in a new terminal:
 
 ```bash
 ssh -R 0 pom.run
 ```
 
-This creates a secure tunnel and displays a terminal UI with your connection details. Look for the **Port Forward Status** section, which shows:
+**First-time setup:**
+
+1. You'll see a sign-in URL in your terminal:
+   ```
+   Please sign in with hosted to continue
+   https://data-plane-us-central1-1.dataplane.pomerium.com/.pomerium/sign_in?user_code=some-code
+   ```
+
+2. Click the link and sign up
+3. Authorize via the Pomerium OAuth flow
+4. The terminal will display your connection details
+
+Look for the **Port Forward Status** section, which shows:
 
 - **Status**: `ACTIVE` (your tunnel is running)
-- **Remote**: `https://template.xxx-yyy-123.pomerium.app` (your public URL)
+- **Remote**: `https://template.first-wallaby-240.pom.run` (your public URL)
 - **Local**: `http://localhost:8080` (your local server)
 
-Use the **Remote** HTTPS URL in ChatGPT's connector settings. The tunnel stays active as long as the SSH session is running.
+**Add to ChatGPT:**
+
+1. Ensure ChatGPT apps dev mode is enabled in settings
+2. In ChatGPT: Settings → Connectors → Add Connector
+3. Enter your Remote URL + `/mcp`: `https://template.first-wallaby-240.pom.run/mcp`
+4. Add the app to a chat and test with: `echo Hi there!`
+
+The tunnel stays active as long as the SSH session is running.
 
 **Production Setup:**
 
@@ -351,7 +376,36 @@ Requirements:
 
 ## Production Deployment
 
-### Docker
+### Building for Production
+
+```bash
+# Full production build
+npm run build
+```
+
+This runs:
+1. `npm run build:widgets` - Builds optimized widget bundles with content hashing
+2. `npm run build:server` - Compiles TypeScript server code
+
+**Build outputs:**
+- `assets/` - Optimized widget bundles (JS/CSS with content hashes)
+- `server/dist/` - Compiled server code
+
+### Manual Deployment
+
+```bash
+npm install
+npm run build
+NODE_ENV=production npm start
+```
+
+The server will:
+- Serve MCP on `http://localhost:8080/mcp`
+- Load pre-built widgets from `assets/`
+- Use structured logging (JSON format)
+- Run with production optimizations
+
+### Docker Deployment
 
 ```bash
 docker build -f docker/Dockerfile -t chatgpt-app:latest .
@@ -360,12 +414,23 @@ docker-compose -f docker/docker-compose.yml up -d
 
 ### Production Checklist
 
+**Environment Variables:**
 - Set `NODE_ENV=production`
 - Configure `CORS_ORIGIN` to your domain (not `*`)
-- Use `LOG_LEVEL=warn` or `error` for production
-- Set appropriate `SESSION_MAX_AGE` for your use case
-- Configure `BASE_URL` if using CDN
-- Deploy to publicly accessible URL (ChatGPT requires HTTPS in production)
+- Set `LOG_LEVEL=warn` or `error` for production
+- Configure `SESSION_MAX_AGE` based on your use case
+- Set `BASE_URL` if using a CDN for widget assets
+
+**Deployment Requirements:**
+- Deploy to publicly accessible URL (ChatGPT requires HTTPS)
+- Ensure `assets/` directory is deployed with the server
+- Configure reverse proxy if needed (nginx, Caddy, etc.)
+- Set up SSL/TLS certificates
+
+**Monitoring:**
+- Monitor `/health` endpoint for server status
+- Set up logging aggregation (Pino outputs JSON in production)
+- Configure alerts for errors and performance issues
 
 ## Important Notes for AI Assistants
 
