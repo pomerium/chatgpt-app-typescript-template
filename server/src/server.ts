@@ -77,14 +77,20 @@ async function readWidgetHtml(widgetId: string): Promise<string> {
   // In development, fetch from Vite dev server
   if (NODE_ENV === 'development') {
     try {
-      const response = await fetch(`http://localhost:${WIDGET_PORT}/${widgetId}.html`);
+      const url = `http://localhost:${WIDGET_PORT}/${widgetId}.html`;
+      logger.debug({ url }, 'Fetching widget HTML from Vite dev server');
+      const response = await fetch(url);
       if (!response.ok) {
+        const errorText = await response.text();
+        logger.error({ status: response.status, statusText: response.statusText, errorText, url }, 'Vite dev server returned error');
         throw new Error(`Failed to fetch widget HTML: ${response.statusText}`);
       }
-      return await response.text();
+      const html = await response.text();
+      logger.debug({ url, htmlLength: html.length }, 'Successfully fetched widget HTML');
+      return html;
     } catch (err) {
       logger.warn(
-        { err, widgetId },
+        { err, widgetId, widgetPort: WIDGET_PORT },
         'Failed to fetch from Vite dev server, falling back to built assets'
       );
       // Fall through to read from assets

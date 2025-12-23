@@ -12,7 +12,7 @@ interface WidgetEntry {
 
 /**
  * Vite plugin that auto-discovers widgets and builds them separately
- * Widgets just export their component - mounting is handled automatically
+ * Widgets must include mounting code at the bottom of their files
  */
 export function widgetDiscoveryPlugin(): Plugin {
   let config: ResolvedConfig;
@@ -20,7 +20,7 @@ export function widgetDiscoveryPlugin(): Plugin {
 
   return {
     name: 'widget-discovery',
-    // No enforce - run in normal order after React plugin
+    // Let plugin order in vite.config.ts determine execution order
 
     config() {
       // Discover widgets during config phase
@@ -52,7 +52,7 @@ export function widgetDiscoveryPlugin(): Plugin {
       // Build multi-entry configuration using virtual modules
       const input: Record<string, string> = {};
       widgets.forEach((widget) => {
-        // Use virtual .js module as entry point (same as dev mode)
+        // Use virtual module as entry (injects preamble, then imports widget)
         input[widget.name] = `virtual:widget-${widget.name}.js`;
       });
 
@@ -84,54 +84,95 @@ export function widgetDiscoveryPlugin(): Plugin {
         moduleId = moduleId.slice(1);
       }
 
-      // Resolve virtual widget entry modules (.js so React plugin doesn't expect preamble)
-      if (moduleId.startsWith('virtual:widget-') && moduleId.endsWith('.js')) {
-        return moduleId;
+      // Handle virtual module IDs (Rollup convention: use \0 prefix)
+      if (moduleId.startsWith('virtual:widget-')) {
+        return '\0' + moduleId; // Return with null byte prefix
+      }
+
+      // Handle CSS virtual modules (pizza demo pattern)
+      if (moduleId.endsWith('.css')) {
+        const name = moduleId.slice(0, -4);
+        if (widgets.find((w) => w.name === name)) {
+          return '\0virtual:style:' + name + '.css';
+        }
       }
     },
 
     load(id) {
-      // Generate mounting code for virtual widget modules (.js files, no JSX)
-      if (id.startsWith('virtual:widget-') && id.endsWith('.js')) {
-        const widgetName = id.replace('virtual:widget-', '').replace('.js', '');
+      // Handle virtual modules (strip \0 prefix for matching)
+      const cleanId = id.startsWith('\0') ? id.slice(1) : id;
+
+      // Handle CSS virtual modules
+      if (cleanId.startsWith('virtual:style:') && cleanId.endsWith('.css')) {
+        const widgetName = cleanId
+          .replace('virtual:style:', '')
+          .replace('.css', '');
+        const widget = widgets.find((w) => w.name === widgetName);
+
+        if (!widget) {
+          return null;
+        }
+
+        // Import global CSS and widget-specific CSS
+        const toServerRoot = (abs: string) => {
+          const rel = path.relative(process.cwd(), abs).replace(/\\/g, '/');
+          if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
+            return '/@fs/' + abs.replace(/\\/g, '/');
+          }
+          return './' + rel;
+        };
+
+        // Find CSS files in widget directory and global index.css
+        const globalCss = path.resolve('src/index.css');
+        const lines = ['@source "./src";'];
+
+        if (fs.existsSync(globalCss)) {
+          lines.push(`@import "${toServerRoot(globalCss)}";`);
+        }
+
+        // Add widget-specific CSS if it exists
+        const widgetCss = path.resolve(widget.dir, `../index.css`);
+        if (fs.existsSync(widgetCss)) {
+          lines.push(`@import "${toServerRoot(widgetCss)}";`);
+        }
+
+        return {
+          code: lines.join('\n'),
+          map: null,
+        };
+      }
+
+      // Handle widget entry virtual modules
+      if (cleanId.startsWith('virtual:widget-') && cleanId.endsWith('.js')) {
+        const widgetName = cleanId
+          .replace('virtual:widget-', '')
+          .replace('.js', '');
         const widget = widgets.find((w) => w.name === widgetName);
 
         if (!widget) {
           throw new Error(`Widget not found: ${widgetName}`);
         }
 
-        // Setup preamble FIRST, then use dynamic import like OpenAI examples
+        // Convert to /@fs/ path (pizza demo pattern)
+        const toFs = (abs: string) => '/@fs/' + abs.replace(/\\/g, '/');
+        const widgetPath = toFs(widget.path);
+
+        // Inject preamble BEFORE importing widget (exact pizza demo pattern)
+        // This ensures Fast Refresh is set up before the widget code runs
         return {
-          code: `
-import '/@vite/client';
-import RefreshRuntime from '/@react-refresh';
+          code: `import "/@vite/client";
+
+import RefreshRuntime from "/@react-refresh";
 
 if (!window.__vite_plugin_react_preamble_installed__) {
-  RefreshRuntime.injectIntoGlobalHook(window);
-  window.$RefreshReg$ = () => {};
-  window.$RefreshSig$ = () => (type) => type;
-  window.__vite_plugin_react_preamble_installed__ = true;
+    RefreshRuntime.injectIntoGlobalHook(window);
+    window.$RefreshReg$ = () => {};
+    window.$RefreshSig$ = () => (type) => type;
+    window.__vite_plugin_react_preamble_installed__ = true;
 }
 
-// Use dynamic import (await import) to ensure preamble runs first
-const [{ default: React }, { createRoot }, { default: Widget }] = await Promise.all([
-  import('react'),
-  import('react-dom/client'),
-  import('${widget.path}')
-]);
-
-const rootElement = document.getElementById('${widgetName}-root');
-
-if (rootElement) {
-  createRoot(rootElement).render(
-    React.createElement(React.StrictMode, null,
-      React.createElement(Widget, null)
-    )
-  );
-} else {
-  console.error('Root element not found: ${widgetName}-root');
-}
-`,
+import "./src/index.css";
+await import(${JSON.stringify(widgetPath)});`,
           map: null,
         };
       }
@@ -157,14 +198,18 @@ if (rootElement) {
 
         if (!widget) return next();
 
-        // Reference virtual .js module (not .tsx) so React plugin doesn't expect preamble
+        // Get the widget port for absolute URLs (needed for iframe embedding)
+        const widgetPort = process.env.WIDGET_PORT || '4444';
+        const baseUrl = `http://localhost:${widgetPort}`;
+
+        // Import virtual module (sets up preamble, then loads widget)
         const html = `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${widget.name}</title>
-  <script type="module" src="/virtual:widget-${widget.name}.js"></script>
+  <script type="module" src="${baseUrl}/virtual:widget-${widget.name}.js"></script>
 </head>
 <body>
   <div id="${widget.name}-root"></div>
@@ -191,11 +236,15 @@ if (rootElement) {
 
         // Generate content hashes
         const jsHash = generateContentHash(jsPath);
-        const cssHash = fs.existsSync(cssPath) ? generateContentHash(cssPath) : null;
+        const cssHash = fs.existsSync(cssPath)
+          ? generateContentHash(cssPath)
+          : null;
 
         // Create hashed copies
         const jsHashedPath = path.join(outDir, `${widget.name}-${jsHash}.js`);
-        const cssHashedPath = cssHash ? path.join(outDir, `${widget.name}-${cssHash}.css`) : null;
+        const cssHashedPath = cssHash
+          ? path.join(outDir, `${widget.name}-${cssHash}.css`)
+          : null;
 
         fs.copyFileSync(jsPath, jsHashedPath);
         if (cssHash && cssHashedPath) {
@@ -207,8 +256,14 @@ if (rootElement) {
           console.log(`  ${widget.name}.css → ${widget.name}-${cssHash}.css`);
         }
 
-        // Determine base URL
-        const baseUrl = process.env.ASSET_BASE_URL || '/assets';
+        // Determine base URL for widget assets
+        // Matches OpenAI Apps SDK pattern: use BASE_URL env var, fallback to localhost:WIDGET_PORT
+        const widgetPort = process.env.WIDGET_PORT || '4444';
+        const defaultBaseUrl = `http://localhost:${widgetPort}`;
+        const baseUrlCandidate = process.env.BASE_URL?.trim() ?? '';
+        const baseUrlRaw =
+          baseUrlCandidate.length > 0 ? baseUrlCandidate : defaultBaseUrl;
+        const baseUrl = baseUrlRaw.replace(/\/+$/, '') || defaultBaseUrl;
 
         // Generate HTML template
         const html = `<!doctype html>

@@ -16,10 +16,9 @@ export default defineConfig({
   },
   plugins: [
     react({
-      // Try babel mode which may be more lenient with Fast Refresh
       jsxRuntime: 'automatic',
-    }), // React plugin FIRST to set up Fast Refresh correctly
-    widgetDiscoveryPlugin(), // Widget discovery after React
+    }),
+    widgetDiscoveryPlugin(),
     tailwindcss(),
     // Production compression only
     ...(isProd

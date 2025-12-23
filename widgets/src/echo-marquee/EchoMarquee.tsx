@@ -48,13 +48,17 @@ export function EchoMarquee({ message, speed = 50 }: EchoMarqueeProps) {
           ref={marqueeRef}
           className="flex whitespace-nowrap hover:[animation-play-state:paused]"
           style={{
-            animation: 'marquee-scroll var(--marquee-duration, 20s) linear infinite',
+            animation:
+              'marquee-scroll var(--marquee-duration, 20s) linear infinite',
           }}
         >
           <span className="inline-block text-2xl font-bold px-8 text-primary">
             {displayMessage}
           </span>
-          <span className="inline-block text-2xl font-bold px-8 text-primary" aria-hidden="true">
+          <span
+            className="inline-block text-2xl font-bold px-8 text-primary"
+            aria-hidden="true"
+          >
             {displayMessage}
           </span>
         </div>
