@@ -45,6 +45,7 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
 const SESSION_MAX_AGE = parseInt(process.env.SESSION_MAX_AGE || '3600000', 10);
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+const WIDGET_PORT = parseInt(process.env.WIDGET_PORT || '4444', 10);
 
 // Setup pino logger
 const logger = pino({
@@ -70,9 +71,27 @@ const ECHO_WIDGET: WidgetDescriptor = {
 };
 
 /**
- * Read widget HTML from assets directory
+ * Read widget HTML - from Vite dev server in development, from assets in production
  */
-function readWidgetHtml(widgetId: string): string {
+async function readWidgetHtml(widgetId: string): Promise<string> {
+  // In development, fetch from Vite dev server
+  if (NODE_ENV === 'development') {
+    try {
+      const response = await fetch(`http://localhost:${WIDGET_PORT}/${widgetId}.html`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch widget HTML: ${response.statusText}`);
+      }
+      return await response.text();
+    } catch (err) {
+      logger.warn(
+        { err, widgetId },
+        'Failed to fetch from Vite dev server, falling back to built assets'
+      );
+      // Fall through to read from assets
+    }
+  }
+
+  // In production or if dev server fetch failed, read from assets
   if (!fs.existsSync(ASSETS_DIR)) {
     throw new Error(
       `Widget assets not found. Expected directory ${ASSETS_DIR}. Run "npm run build:widgets" before starting the server.`
@@ -246,7 +265,7 @@ function createMcpServer(sessionId: string): Server {
 
         if (widgetId === ECHO_WIDGET.id) {
           try {
-            const html = readWidgetHtml(widgetId);
+            const html = await readWidgetHtml(widgetId);
 
             sessionLogger.info({ uri, widgetId }, 'Widget resource loaded');
 
