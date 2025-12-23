@@ -22,27 +22,22 @@ A well-architected starter template demonstrating best practices for building Ch
 
 ## Architecture
 
-```
-┌─────────────┐
-│   ChatGPT   │
-└──────┬──────┘
-       │ SSE
-       ▼
-┌─────────────────────────────────────┐
-│  MCP Server (Node.js + Express)    │
-│  - Echo Tool                        │
-│  - Resource Registration            │
-│  - text/html+skybridge MIME type    │
-└──────┬──────────────────────────────┘
-       │
-       │ _meta.outputTemplate
-       ▼
-┌─────────────────────────────────────┐
-│  Widget (React in iframe)           │
-│  - Reads window.openai.toolOutput   │
-│  - Calls window.openai.callTool()   │
-│  - Theme, displayMode, safeArea     │
-└─────────────────────────────────────┘
+```mermaid
+graph TD
+    A[ChatGPT] -->|HTTPStreamable| B[MCP Server<br/>Node.js + Express]
+    B -->|_meta.outputTemplate| C[Widget<br/>React in iframe]
+
+    B -.-> B1[Echo Tool]
+    B -.-> B2[Resource Registration]
+    B -.-> B3[text/html+skybridge<br/>MIME type]
+
+    C -.-> C1[Reads window.openai.toolOutput]
+    C -.-> C2[Calls window.openai.callTool]
+    C -.-> C3[Theme, displayMode, safeArea]
+
+    style A fill:#e1f5ff
+    style B fill:#fff4e6
+    style C fill:#f3e5f5
 ```
 
 ## Quick Start
