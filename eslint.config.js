@@ -12,7 +12,7 @@ export default [
       '**/dist/**',
       '**/assets/**',
       '**/build/**',
-      'storybook-static/**',
+      '**/storybook-static/**',
     ],
   },
   eslint.configs.recommended,
