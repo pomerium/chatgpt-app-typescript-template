@@ -193,8 +193,6 @@ if (rootElement) {
 
 ### Widget Development Patterns
 
-Widgets use two key custom hooks:
-
 **`useOpenAiGlobal(key)`** - Read reactive values from ChatGPT host:
 
 ```typescript
@@ -202,17 +200,19 @@ const toolOutput = useOpenAiGlobal('toolOutput'); // Tool's structuredContent
 const theme = useOpenAiGlobal('theme'); // 'light' | 'dark'
 const displayMode = useOpenAiGlobal('displayMode'); // 'inline' | 'pip' | 'fullscreen'
 const safeArea = useOpenAiGlobal('safeArea'); // Insets for layout
+const widgetState = useOpenAiGlobal('widgetState'); // Persistent state from host
 ```
 
-**`useWidgetState(initialState)`** - Persistent state synchronized with host:
+This hook is implemented using React's `useSyncExternalStore` for proper reactivity with the ChatGPT host's event system.
+
+**Setting Widget State** - Persist state to the host:
 
 ```typescript
-const [state, setState] = useWidgetState({ count: 0 });
+// Update persisted state
+await window.openai?.setWidgetState({ count: 42 });
 // State persists per message and syncs automatically
 // Keep under 4,000 tokens for optimal performance
 ```
-
-Both hooks are implemented using React's `useSyncExternalStore` for proper reactivity with the ChatGPT host's event system.
 
 ### Zod Validation Pattern
 
@@ -240,7 +240,7 @@ This ensures type safety and runtime validation.
 - `widgets/src/{widget-name}/styles.css` - Component-specific styles
 - `widgets/src/{widget-name}/{Component}.stories.tsx` - Storybook stories
 - `widgets/src/components/` - Shared components (including shadcn/ui)
-- `widgets/src/hooks/` - Shared React hooks for OpenAI API integration
+- `widgets/src/hooks/use-openai-global.ts` - React hook for OpenAI API integration
 - `widgets/src/types/openai.d.ts` - TypeScript definitions for window.openai
 - `widgets/vite-plugin-widgets.ts` - Custom Vite plugin for auto-discovery and building
 

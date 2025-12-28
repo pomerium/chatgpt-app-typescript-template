@@ -298,8 +298,7 @@ chatgpt-app-template/
 │   │   ├── components/
 │   │   │   └── ui/              # ShadCN components
 │   │   ├── hooks/
-│   │   │   ├── use-openai-global.ts
-│   │   │   └── use-widget-state.ts
+│   │   │   └── use-openai-global.ts
 │   │   └── types/
 │   │       └── openai.d.ts
 │   ├── .storybook/         # Storybook config
@@ -474,8 +473,10 @@ The build system:
 ```typescript
 const toolOutput = useOpenAiGlobal('toolOutput'); // Tool's structured content
 const toolInput = useOpenAiGlobal('toolInput'); // Tool arguments
-const [state, setState] = useWidgetState({ count: 0 }); // Persistent state
+const widgetState = useOpenAiGlobal('widgetState'); // Persistent state from host
 ```
+
+**Setting State**: Use `window.openai.setWidgetState(newState)` to persist state.
 
 **State Limits**: Keep `widgetState` under **4,000 tokens** for optimal performance.
 
@@ -525,18 +526,24 @@ function MyWidget() {
   const toolOutput = useOpenAiGlobal('toolOutput');
   const theme = useOpenAiGlobal('theme');
   const safeArea = useOpenAiGlobal('safeArea');
-  const [count, setCount] = useState(0);
+  const widgetState = useOpenAiGlobal('widgetState');
+
+  const count = widgetState?.count ?? 0;
 
   const containerStyle = {
     paddingTop: safeArea?.insets?.top || 0,
     paddingBottom: safeArea?.insets?.bottom || 0,
   };
 
+  const handleIncrement = () => {
+    window.openai?.setWidgetState({ count: count + 1 });
+  };
+
   return (
     <div style={containerStyle} className={theme === 'dark' ? 'dark' : ''}>
       <h1>My Widget</h1>
       <p>Tool output: {JSON.stringify(toolOutput)}</p>
-      <button onClick={() => setCount(count + 1)}>Count: {count}</button>
+      <button onClick={handleIncrement}>Count: {count}</button>
     </div>
   );
 }
