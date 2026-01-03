@@ -14,7 +14,7 @@
     "dev:widgets": "npm run dev --workspace=widgets",
     "serve:widgets": "npm run serve --workspace=widgets",
     "storybook": "npm run storybook --workspace=widgets",
-    "inspect": "npx @modelcontextprotocol/inspector http://localhost:8080/mcp",
+    "inspect": "npx @mcpjam/inspector@latest --config mcp-inspector.json",
     "build": "npm run build:widgets && npm run build:server",
     "build:server": "npm run build --workspace=server",
     "build:widgets": "npm run build --workspace=widgets",
