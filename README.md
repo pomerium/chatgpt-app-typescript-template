@@ -6,7 +6,7 @@ A well-architected starter template demonstrating best practices for building [C
 
 - **MCP Server** - Node.js server with base `Server` class (preserves `_meta` fields)
 - **Echo Tool** - Example tool with [Zod](https://zod.dev/) validation and widget response
-- **React Widgets** - Interactive marquee component with `callTool` demo
+- **React Widgets** - Interactive Echo component with `callTool` demo
 - **[Pino](https://getpino.io/) Logging** - Structured logging with pretty printing in development
 - **TypeScript** - Strict mode with ES2023 target
 - **[Tailwind CSS v4](https://tailwindcss.com/)** - Modern styling with dark mode support
@@ -91,7 +91,7 @@ You should see output indicating both servers are running successfully:
 [0]
 [1]
 [1] Found 1 widget(s):
-[1]   - echo-marquee
+[1]   - echo
 [1]
 [1]
 [1]   VITE v6.4.1  ready in 151 ms
@@ -154,7 +154,7 @@ Look for the **Port Forward Status** section showing:
 1. Start a new chat in ChatGPT
 2. Add your app to the chat
 3. Send: `echo Hello from my ChatGPT app!`
-4. You should see the message displayed in a scrolling marquee widget
+4. You should see the message displayed in an interactive widget
 
 The tunnel stays active as long as the SSH session is running.
 
@@ -290,10 +290,10 @@ chatgpt-app-template/
 ├── widgets/                 # React widgets
 │   ├── src/
 │   │   ├── widgets/
-│   │   │   └── echo-marquee.tsx   # Widget entry (includes mounting code)
-│   │   ├── echo-marquee/
-│   │   │   ├── EchoMarquee.tsx    # Shared components
-│   │   │   ├── EchoMarquee.stories.tsx
+│   │   │   └── echo.tsx           # Widget entry (includes mounting code)
+│   │   ├── echo/
+│   │   │   ├── Echo.tsx           # Shared components
+│   │   │   ├── Echo.stories.tsx
 │   │   │   └── styles.css
 │   │   ├── components/
 │   │   │   └── ui/              # ShadCN components
@@ -305,9 +305,9 @@ chatgpt-app-template/
 │   └── package.json        # Widget dependencies
 │
 ├── assets/                  # Asset build artifacts
-│   ├── echo-marquee.html
-│   ├── echo-marquee-[hash].js
-│   └── echo-marquee-[hash].css
+│   ├── echo.html
+│   ├── echo-[hash].js
+│   └── echo-[hash].css
 │
 ├── scripts/
 │   └── build-all.mts       # Parallel widget builds
@@ -619,7 +619,7 @@ return {
 ```json
 {
   "name": "echo",
-  "description": "Echoes back the user's message in a scrolling marquee widget",
+  "description": "Echoes back the user's message in an interactive widget",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -646,7 +646,7 @@ return {
   _meta: {
     outputTemplate: {
       type: 'resource',
-      resource: { uri: 'ui://echo-marquee' }
+      resource: { uri: 'ui://echo' }
     }
   }
 }

@@ -139,9 +139,9 @@ The server uses `SessionManager` (server/src/utils/session.ts) to track MCP sess
 Vite auto-discovers and builds widgets via a custom plugin:
 
 - Scans `widgets/src/widgets/*.{tsx,jsx}` for widget entry points
-- Widget name comes from the filename (e.g., `echo-marquee.tsx` → `echo-marquee` widget)
+- Widget name comes from the filename (e.g., `echo.tsx` → `echo` widget)
 - **Widgets must include their own mounting code** at the bottom of the file
-- Generates content-hashed assets (e.g., `echo-marquee-a1b2c3d4.js`)
+- Generates content-hashed assets (e.g., `echo-a1b2c3d4.js`)
 - Creates HTML templates with preload hints that reference hashed assets
 - Both hashed and unhashed filenames are generated for flexibility
 - Widget bundles in `assets/` are generated artifacts; never edit them manually
@@ -151,11 +151,11 @@ Vite auto-discovers and builds widgets via a custom plugin:
 ```
 widgets/src/
   ├── widgets/              # Widget entry points (auto-discovered)
-  │   ├── echo-marquee.tsx  # Widget entry - includes mounting code
+  │   ├── echo.tsx          # Widget entry - includes mounting code
   │   └── counter.tsx       # Another widget entry
-  ├── echo-marquee/         # Widget-specific components
-  │   ├── EchoMarquee.tsx
-  │   └── styles.css
+  ├── echo/                 # Widget-specific components
+  │   ├── Echo.tsx
+  │   └── Echo.stories.tsx
   ├── components/           # Shared components (including shadcn/ui)
   │   └── ui/
   ├── hooks/                # Shared hooks
@@ -247,13 +247,13 @@ This ensures type safety and runtime validation.
 ### Generated Assets
 
 - `assets/` - Built widget bundles (gitignored)
-- Files include both hashed versions (`echo-marquee-{hash}.js`) and unhashed (`echo-marquee.js`)
+- Files include both hashed versions (`echo-{hash}.js`) and unhashed (`echo.js`)
 - HTML templates reference the hashed assets for cache busting
 
 ## Coding Style & Conventions
 
 - TypeScript runs in strict mode; prefer explicit types at module boundaries
-- Keep React components in PascalCase modules (e.g., `EchoMarquee.tsx`)
+- Keep React components in PascalCase modules (e.g., `Echo.tsx`)
 - Run `npm run lint` to apply ESLint (React, hooks, a11y plugins) and guard import order, unused vars, and hook usage
 - Format with `npm run format`; Prettier defaults to 2-space indentation and double quotes
 
