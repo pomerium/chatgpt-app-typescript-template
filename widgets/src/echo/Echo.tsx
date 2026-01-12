@@ -90,6 +90,11 @@ export default function Echo() {
           ) : (
             <Moon className="h-4 w-4 text-zinc-700" />
           )}
+          <span className="sr-only">
+            {activeTheme === 'dark'
+              ? 'Switch to light theme'
+              : 'Switch to dark theme'}
+          </span>
         </Button>
       </div>
 
