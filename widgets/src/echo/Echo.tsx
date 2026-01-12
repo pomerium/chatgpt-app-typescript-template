@@ -28,7 +28,8 @@ export default function Echo() {
     setLocalTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  const activeTheme = localTheme || theme || 'light';
+  // Prioritize theme from OpenAI host, fall back to local toggle
+  const activeTheme = theme || localTheme || 'light';
 
   /**
    * Call the echo tool from the widget
