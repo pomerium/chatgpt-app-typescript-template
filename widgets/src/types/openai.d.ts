@@ -73,12 +73,20 @@ export interface OpenAiGlobals {
   setWidgetState: (state: WidgetState) => Promise<void>;
 
   // Runtime APIs
-  callTool: (name: string, args: Record<string, unknown>) => Promise<CallToolResponse>;
+  callTool: (
+    name: string,
+    args: Record<string, unknown>
+  ) => Promise<CallToolResponse>;
   sendFollowUpMessage: (args: { prompt: string }) => Promise<void>;
   uploadFile: (file: File) => Promise<{ fileId: string }>;
   getFileDownloadUrl: (args: { fileId: string }) => Promise<{ url: string }>;
-  requestDisplayMode: (args: { mode: DisplayMode }) => Promise<{ mode: DisplayMode }>;
-  requestModal: (args: { title?: string; params?: Record<string, unknown> }) => Promise<unknown>;
+  requestDisplayMode: (args: {
+    mode: DisplayMode;
+  }) => Promise<{ mode: DisplayMode }>;
+  requestModal: (args: {
+    title?: string;
+    params?: Record<string, unknown>;
+  }) => Promise<unknown>;
   openExternal: (args: { href: string }) => void;
   notifyIntrinsicHeight: (args: { height: number }) => void;
   requestClose: () => Promise<void>;

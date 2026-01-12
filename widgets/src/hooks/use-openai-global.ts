@@ -23,9 +23,9 @@ export function useOpenAiGlobal<TToolOutput extends ToolOutput>(
 ): TToolOutput | null;
 
 // Overload for all other keys
-export function useOpenAiGlobal<K extends Exclude<keyof OpenAiGlobals, 'toolOutput'>>(
-  key: K
-): OpenAiGlobals[K] | null;
+export function useOpenAiGlobal<
+  K extends Exclude<keyof OpenAiGlobals, 'toolOutput'>,
+>(key: K): OpenAiGlobals[K] | null;
 
 // Implementation
 export function useOpenAiGlobal<K extends keyof OpenAiGlobals>(

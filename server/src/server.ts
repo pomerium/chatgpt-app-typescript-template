@@ -185,8 +185,7 @@ function createMcpServer(sessionId: string): Server {
           {
             uri: ECHO_WIDGET.uri,
             name: ECHO_WIDGET.title,
-            description:
-              'Interactive widget for displaying echoed messages',
+            description: 'Interactive widget for displaying echoed messages',
             mimeType: 'text/html+skybridge',
           },
         ],
@@ -203,8 +202,7 @@ function createMcpServer(sessionId: string): Server {
           {
             uriTemplate: ECHO_WIDGET.uri,
             name: ECHO_WIDGET.title,
-            description:
-              'Interactive widget for displaying echoed messages',
+            description: 'Interactive widget for displaying echoed messages',
             mimeType: 'text/html+skybridge',
             _meta: {
               'openai/outputTemplate': ECHO_WIDGET.uri,

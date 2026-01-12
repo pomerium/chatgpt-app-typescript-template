@@ -293,6 +293,7 @@ ssh -R 0 pom.run
 **First-time setup:**
 
 1. You'll see a sign-in URL in your terminal:
+
    ```
    Please sign in with hosted to continue
    https://data-plane-us-central1-1.dataplane.pomerium.com/.pomerium/sign_in?user_code=some-code
@@ -384,10 +385,12 @@ npm run build
 ```
 
 This runs:
+
 1. `npm run build:widgets` - Builds optimized widget bundles with content hashing
 2. `npm run build:server` - Compiles TypeScript server code
 
 **Build outputs:**
+
 - `assets/` - Optimized widget bundles (JS/CSS with content hashes)
 - `server/dist/` - Compiled server code
 
@@ -400,6 +403,7 @@ NODE_ENV=production npm start
 ```
 
 The server will:
+
 - Serve MCP on `http://localhost:8080/mcp`
 - Load pre-built widgets from `assets/`
 - Use structured logging (JSON format)
@@ -415,6 +419,7 @@ docker-compose -f docker/docker-compose.yml up -d
 ### Production Checklist
 
 **Environment Variables:**
+
 - Set `NODE_ENV=production`
 - Configure `CORS_ORIGIN` to your domain (not `*`)
 - Set `LOG_LEVEL=warn` or `error` for production
@@ -422,12 +427,14 @@ docker-compose -f docker/docker-compose.yml up -d
 - Set `BASE_URL` if using a CDN for widget assets
 
 **Deployment Requirements:**
+
 - Deploy to publicly accessible URL (ChatGPT requires HTTPS)
 - Ensure `assets/` directory is deployed with the server
 - Configure reverse proxy if needed (nginx, Caddy, etc.)
 - Set up SSL/TLS certificates
 
 **Monitoring:**
+
 - Monitor `/health` endpoint for server status
 - Set up logging aggregation (Pino outputs JSON in production)
 - Configure alerts for errors and performance issues

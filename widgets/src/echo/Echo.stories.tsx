@@ -124,11 +124,13 @@ export const LongMessage: Story = {
 export const DarkTheme: Story = {
   decorators: [
     (Story) => {
-      debugger;
-      mockOpenAiGlobal({
-        echoedMessage: 'Hello in dark mode!',
-        timestamp: new Date().toISOString(),
-      }, { theme: 'dark' },);
+      mockOpenAiGlobal(
+        {
+          echoedMessage: 'Hello in dark mode!',
+          timestamp: new Date().toISOString(),
+        },
+        { theme: 'dark' }
+      );
 
       return <Story />;
     },
