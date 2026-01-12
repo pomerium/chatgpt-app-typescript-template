@@ -1,4 +1,6 @@
 import type { Preview } from '@storybook/react';
+import '@fontsource/geist-sans';
+import '@fontsource/geist-mono';
 import '../src/index.css';
 
 const preview: Preview = {

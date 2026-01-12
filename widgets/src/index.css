@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "@fontsource/geist-sans/index.css";
+@import "@fontsource/geist-mono/index.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -59,8 +61,8 @@
 }
 
 @theme inline {
-  --font-sans: "Geist", "Geist Fallback";
-  --font-mono: "Geist Mono", "Geist Mono Fallback";
+  --font-sans: "Geist Sans", system-ui, sans-serif;
+  --font-mono: "Geist Mono", monospace;
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-card: hsl(var(--card));
