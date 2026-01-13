@@ -84,7 +84,7 @@ export default function Echo() {
           onClick={toggleTheme}
           variant="outline"
           size="icon"
-          className="rounded-full dark:bg-zinc-800/90 dark:border-zinc-700 dark:hover:bg-zinc-700 bg-white/90 backdrop-blur-sm border-zinc-200 hover:bg-zinc-100 transition-all duration-300 shadow-lg hover:shadow-xl hover:"
+          className="rounded-full dark:bg-zinc-800/90 dark:border-zinc-700 dark:hover:bg-zinc-700 bg-white/90 backdrop-blur-sm border-zinc-200 hover:bg-zinc-100 transition-all duration-300 shadow-lg hover:shadow-xl"
         >
           {activeTheme === 'dark' ? (
             <Sun className="h-4 w-4 text-yellow-500" />
@@ -125,14 +125,14 @@ export default function Echo() {
               variant="default"
               onClick={handleCallEcho}
               disabled={isLoading}
-              className="font-medium dark:bg-purple-600 dark:hover:bg-purple-700 dark:text-white bg-zinc-900 hover:bg-zinc-800 text-white shadow-md hover:shadow-lg transition-all duration-300 hover:"
+              className="font-medium dark:bg-purple-600 dark:hover:bg-purple-700 dark:text-white bg-zinc-900 hover:bg-zinc-800 text-white shadow-md hover:shadow-lg transition-all duration-300"
             >
               Call Echo Tool
             </Button>
             <Button
               variant="outline"
               onClick={() => setCallResult(null)}
-              className="font-medium dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 text-zinc-700 hover:bg-zinc-100 hover: transition-all duration-300"
+              className="font-medium dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 text-zinc-700 hover:bg-zinc-100 transition-all duration-300"
             >
               Clear Result
             </Button>
@@ -140,7 +140,7 @@ export default function Echo() {
               <Button
                 onClick={handleRequestFullscreen}
                 variant="outline"
-                className="font-medium dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 text-zinc-700 hover:bg-zinc-100 hover: transition-all duration-300"
+                className="font-medium dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 text-zinc-700 hover:bg-zinc-100 transition-all duration-300"
               >
                 Enter Fullscreen
               </Button>
