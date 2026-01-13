@@ -20,16 +20,18 @@ export default function Echo() {
 
   const [callResult, setCallResult] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [localTheme, setLocalTheme] = useState<'light' | 'dark'>('light');
+  const [localTheme, setLocalTheme] = useState<'light' | 'dark' | null>(null);
 
   const message = toolOutput?.echoedMessage || 'No message yet';
 
   const toggleTheme = () => {
-    setLocalTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+    const currentTheme = localTheme ?? theme ?? 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    setLocalTheme(newTheme);
   };
 
-  // Prioritize theme from OpenAI host, fall back to local toggle
-  const activeTheme = theme || localTheme || 'light';
+  // Prioritize local toggle (if set), otherwise use OpenAI host theme
+  const activeTheme = localTheme ?? theme ?? 'light';
 
   /**
    * Call the echo tool from the widget
