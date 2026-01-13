@@ -153,8 +153,10 @@ Look for the **Port Forward Status** section showing:
 
 1. Start a new chat in ChatGPT
 2. Add your app to the chat
-3. Send: `echo Hello from my ChatGPT app!`
+3. Send: `echo today is a great day`
 4. You should see the message displayed in an interactive widget
+
+![Echo tool in action](docs/images/echo-tool-widget.gif)
 
 The tunnel stays active as long as the SSH session is running.
 
