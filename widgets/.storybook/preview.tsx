@@ -1,4 +1,6 @@
 import type { Preview } from '@storybook/react';
+import '@fontsource/geist-sans';
+import '@fontsource/geist-mono';
 import '../src/index.css';
 
 const preview: Preview = {
@@ -28,7 +30,13 @@ const preview: Preview = {
 
       return (
         <div className={theme === 'dark' ? 'dark' : ''}>
-          <div className={theme === 'dark' ? 'bg-gray-900 min-h-screen p-8' : 'bg-white min-h-screen p-8'}>
+          <div
+            className={
+              theme === 'dark'
+                ? 'bg-gray-900 min-h-screen p-8'
+                : 'bg-white min-h-screen p-8'
+            }
+          >
             <Story />
           </div>
         </div>

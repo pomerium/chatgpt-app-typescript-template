@@ -61,9 +61,9 @@ const logger = pino({
 });
 
 const ECHO_WIDGET: WidgetDescriptor = {
-  id: 'echo-marquee',
-  title: 'Echo Marquee',
-  uri: 'ui://echo-marquee',
+  id: 'echo',
+  title: 'Echo',
+  uri: 'ui://echo',
 };
 
 /**
@@ -138,7 +138,7 @@ function createMcpServer(sessionId: string): Server {
 
   const echoTool: Tool = {
     name: 'echo',
-    description: "Echoes back the user's message in a scrolling marquee widget",
+    description: "Echoes back the user's message in an interactive widget",
     inputSchema: {
       type: 'object',
       properties: {
@@ -185,8 +185,7 @@ function createMcpServer(sessionId: string): Server {
           {
             uri: ECHO_WIDGET.uri,
             name: ECHO_WIDGET.title,
-            description:
-              'Interactive scrolling marquee widget for displaying echoed messages',
+            description: 'Interactive widget for displaying echoed messages',
             mimeType: 'text/html+skybridge',
           },
         ],
@@ -203,8 +202,7 @@ function createMcpServer(sessionId: string): Server {
           {
             uriTemplate: ECHO_WIDGET.uri,
             name: ECHO_WIDGET.title,
-            description:
-              'Interactive scrolling marquee widget for displaying echoed messages',
+            description: 'Interactive widget for displaying echoed messages',
             mimeType: 'text/html+skybridge',
             _meta: {
               'openai/outputTemplate': ECHO_WIDGET.uri,

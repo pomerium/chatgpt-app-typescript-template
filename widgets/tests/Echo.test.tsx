@@ -1,38 +1,38 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { EchoMarquee } from '../src/echo-marquee/EchoMarquee.js';
+import Echo from '../src/echo/Echo.js';
 
-describe('EchoMarquee', () => {
+describe('Echo', () => {
   it('should render the message', () => {
-    render(<EchoMarquee message="Test Message" />);
+    render(<Echo message="Test Message" />);
 
     const messages = screen.getAllByText(/Test Message/i);
     expect(messages.length).toBeGreaterThan(0);
   });
 
   it('should have proper ARIA attributes', () => {
-    render(<EchoMarquee message="Accessible Message" />);
+    render(<Echo message="Accessible Message" />);
 
     const region = screen.getByRole('region', { name: /echo marquee/i });
     expect(region).toBeInTheDocument();
   });
 
   it('should apply default speed when not specified', () => {
-    const { container } = render(<EchoMarquee message="Default Speed" />);
+    const { container } = render(<Echo message="Default Speed" />);
 
     const marqueeContent = container.querySelector('.marquee-content');
     expect(marqueeContent).toBeInTheDocument();
   });
 
   it('should handle custom speed prop', () => {
-    const { container } = render(<EchoMarquee message="Fast" speed={100} />);
+    const { container } = render(<Echo message="Fast" speed={100} />);
 
     const marqueeContent = container.querySelector('.marquee-content');
     expect(marqueeContent).toBeInTheDocument();
   });
 
   it('should display message with proper styling', () => {
-    const { container } = render(<EchoMarquee message="Styled Message" />);
+    const { container } = render(<Echo message="Styled Message" />);
 
     const marqueeContainer = container.querySelector('.marquee-container');
     expect(marqueeContainer).toBeInTheDocument();
@@ -40,14 +40,14 @@ describe('EchoMarquee', () => {
   });
 
   it('should duplicate message for seamless loop', () => {
-    render(<EchoMarquee message="Loop Test" />);
+    render(<Echo message="Loop Test" />);
 
     const allText = screen.getAllByText(/Loop Test/);
     expect(allText.length).toBeGreaterThan(1);
   });
 
   it('should handle empty message gracefully', () => {
-    const { container } = render(<EchoMarquee message="" />);
+    const { container } = render(<Echo message="" />);
 
     const marqueeContainer = container.querySelector('.marquee-container');
     expect(marqueeContainer).toBeInTheDocument();
@@ -55,7 +55,7 @@ describe('EchoMarquee', () => {
 
   it('should handle very long messages', () => {
     const longMessage = 'A'.repeat(500);
-    render(<EchoMarquee message={longMessage} />);
+    render(<Echo message={longMessage} />);
 
     const region = screen.getByRole('region');
     expect(region).toBeInTheDocument();

@@ -26,7 +26,11 @@ export class SessionManager {
   /**
    * Create a new session
    */
-  create(sessionId: string, server: Server, transport: StreamableHTTPServerTransport): SessionData {
+  create(
+    sessionId: string,
+    server: Server,
+    transport: StreamableHTTPServerTransport
+  ): SessionData {
     const sessionData: SessionData = {
       server,
       transport,
@@ -35,7 +39,10 @@ export class SessionManager {
 
     this.sessions.set(sessionId, sessionData);
 
-    this.logger.info({ sessionId, sessionCount: this.sessions.size }, 'Session created');
+    this.logger.info(
+      { sessionId, sessionCount: this.sessions.size },
+      'Session created'
+    );
 
     return sessionData;
   }
@@ -54,7 +61,10 @@ export class SessionManager {
     const deleted = this.sessions.delete(sessionId);
 
     if (deleted) {
-      this.logger.info({ sessionId, sessionCount: this.sessions.size }, 'Session deleted');
+      this.logger.info(
+        { sessionId, sessionCount: this.sessions.size },
+        'Session deleted'
+      );
     }
 
     return deleted;
@@ -79,7 +89,10 @@ export class SessionManager {
     }
 
     if (cleaned > 0) {
-      this.logger.info({ cleaned, remaining: this.sessions.size }, 'Session cleanup complete');
+      this.logger.info(
+        { cleaned, remaining: this.sessions.size },
+        'Session cleanup complete'
+      );
     }
 
     return cleaned;

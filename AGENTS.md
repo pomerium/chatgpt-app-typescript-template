@@ -139,9 +139,9 @@ The server uses `SessionManager` (server/src/utils/session.ts) to track MCP sess
 Vite auto-discovers and builds widgets via a custom plugin:
 
 - Scans `widgets/src/widgets/*.{tsx,jsx}` for widget entry points
-- Widget name comes from the filename (e.g., `echo-marquee.tsx` → `echo-marquee` widget)
+- Widget name comes from the filename (e.g., `echo.tsx` → `echo` widget)
 - **Widgets must include their own mounting code** at the bottom of the file
-- Generates content-hashed assets (e.g., `echo-marquee-a1b2c3d4.js`)
+- Generates content-hashed assets (e.g., `echo-a1b2c3d4.js`)
 - Creates HTML templates with preload hints that reference hashed assets
 - Both hashed and unhashed filenames are generated for flexibility
 - Widget bundles in `assets/` are generated artifacts; never edit them manually
@@ -151,11 +151,11 @@ Vite auto-discovers and builds widgets via a custom plugin:
 ```
 widgets/src/
   ├── widgets/              # Widget entry points (auto-discovered)
-  │   ├── echo-marquee.tsx  # Widget entry - includes mounting code
+  │   ├── echo.tsx          # Widget entry - includes mounting code
   │   └── counter.tsx       # Another widget entry
-  ├── echo-marquee/         # Widget-specific components
-  │   ├── EchoMarquee.tsx
-  │   └── styles.css
+  ├── echo/                 # Widget-specific components
+  │   ├── Echo.tsx
+  │   └── Echo.stories.tsx
   ├── components/           # Shared components (including shadcn/ui)
   │   └── ui/
   ├── hooks/                # Shared hooks
@@ -247,13 +247,13 @@ This ensures type safety and runtime validation.
 ### Generated Assets
 
 - `assets/` - Built widget bundles (gitignored)
-- Files include both hashed versions (`echo-marquee-{hash}.js`) and unhashed (`echo-marquee.js`)
+- Files include both hashed versions (`echo-{hash}.js`) and unhashed (`echo.js`)
 - HTML templates reference the hashed assets for cache busting
 
 ## Coding Style & Conventions
 
 - TypeScript runs in strict mode; prefer explicit types at module boundaries
-- Keep React components in PascalCase modules (e.g., `EchoMarquee.tsx`)
+- Keep React components in PascalCase modules (e.g., `Echo.tsx`)
 - Run `npm run lint` to apply ESLint (React, hooks, a11y plugins) and guard import order, unused vars, and hook usage
 - Format with `npm run format`; Prettier defaults to 2-space indentation and double quotes
 
@@ -293,6 +293,7 @@ ssh -R 0 pom.run
 **First-time setup:**
 
 1. You'll see a sign-in URL in your terminal:
+
    ```
    Please sign in with hosted to continue
    https://data-plane-us-central1-1.dataplane.pomerium.com/.pomerium/sign_in?user_code=some-code
@@ -384,10 +385,12 @@ npm run build
 ```
 
 This runs:
+
 1. `npm run build:widgets` - Builds optimized widget bundles with content hashing
 2. `npm run build:server` - Compiles TypeScript server code
 
 **Build outputs:**
+
 - `assets/` - Optimized widget bundles (JS/CSS with content hashes)
 - `server/dist/` - Compiled server code
 
@@ -400,6 +403,7 @@ NODE_ENV=production npm start
 ```
 
 The server will:
+
 - Serve MCP on `http://localhost:8080/mcp`
 - Load pre-built widgets from `assets/`
 - Use structured logging (JSON format)
@@ -415,6 +419,7 @@ docker-compose -f docker/docker-compose.yml up -d
 ### Production Checklist
 
 **Environment Variables:**
+
 - Set `NODE_ENV=production`
 - Configure `CORS_ORIGIN` to your domain (not `*`)
 - Set `LOG_LEVEL=warn` or `error` for production
@@ -422,12 +427,14 @@ docker-compose -f docker/docker-compose.yml up -d
 - Set `BASE_URL` if using a CDN for widget assets
 
 **Deployment Requirements:**
+
 - Deploy to publicly accessible URL (ChatGPT requires HTTPS)
 - Ensure `assets/` directory is deployed with the server
 - Configure reverse proxy if needed (nginx, Caddy, etc.)
 - Set up SSL/TLS certificates
 
 **Monitoring:**
+
 - Monitor `/health` endpoint for server status
 - Set up logging aggregation (Pino outputs JSON in production)
 - Configure alerts for errors and performance issues
