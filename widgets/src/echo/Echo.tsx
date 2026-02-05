@@ -1,22 +1,30 @@
 'use client';
 
-import { useState } from 'react';
-import { useOpenAiGlobal } from '../hooks/use-openai-global';
+import { useEffect, useMemo, useState } from 'react';
+import { App } from '@modelcontextprotocol/ext-apps';
 import { Button } from '@/components/ui/button';
 import type { EchoToolOutput } from 'chatgpt-app-server/types';
 import { Moon, Sun } from 'lucide-react';
+import type {
+  AppLike,
+  HostContext,
+  ToolResultPayload,
+} from '../types/mcp-app';
 
 /**
  * Echo Widget - Vercel-inspired Design
  *
- * Demonstrates ChatGPT widget APIs with a refined, professional aesthetic
+ * Demonstrates MCP Apps widget APIs with a refined, professional aesthetic
  */
-export default function Echo() {
-  const toolOutput = useOpenAiGlobal<EchoToolOutput>('toolOutput');
-  const theme = useOpenAiGlobal('theme');
-  const displayMode = useOpenAiGlobal('displayMode');
-  const safeArea = useOpenAiGlobal('safeArea');
-  const maxHeight = useOpenAiGlobal('maxHeight');
+export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
+  const defaultApp = useMemo(
+    () => new App({ name: 'Echo', version: '1.0.0' }) as AppLike<EchoToolOutput>,
+    []
+  );
+  const activeApp = app ?? defaultApp;
+
+  const [toolOutput, setToolOutput] = useState<EchoToolOutput | null>(null);
+  const [hostContext, setHostContext] = useState<HostContext | null>(null);
 
   const [callResult, setCallResult] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,14 +32,45 @@ export default function Echo() {
 
   const message = toolOutput?.echoedMessage || 'No message yet';
 
+  useEffect(() => {
+    let isMounted = true;
+
+    activeApp.ontoolresult = (result: ToolResultPayload<EchoToolOutput>) => {
+      if (!isMounted) return;
+      setToolOutput(result.structuredContent ?? null);
+    };
+
+    activeApp.onhostcontextchanged = (context: HostContext) => {
+      if (!isMounted) return;
+      setHostContext(context);
+    };
+
+    const connect = async () => {
+      try {
+        await activeApp.connect();
+        if (!isMounted) return;
+        setHostContext(activeApp.getHostContext());
+      } catch (err) {
+        console.error('Failed to connect MCP App:', err);
+      }
+    };
+
+    connect();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeApp]);
+
   const toggleTheme = () => {
-    const currentTheme = localTheme ?? theme ?? 'light';
+    const currentTheme = localTheme ?? hostContext?.theme ?? 'light';
     const newTheme = currentTheme === 'light' ? 'dark' : 'light';
     setLocalTheme(newTheme);
   };
 
-  // Prioritize local toggle (if set), otherwise use OpenAI host theme
-  const activeTheme = localTheme ?? theme ?? 'light';
+  // Prioritize local toggle (if set), otherwise use host theme
+  const activeTheme = localTheme ?? hostContext?.theme ?? 'light';
+  const displayMode = hostContext?.displayMode;
 
   /**
    * Call the echo tool from the widget
@@ -41,11 +80,18 @@ export default function Echo() {
     setCallResult(null);
 
     try {
-      const result = await window.openai?.callTool?.('echo', {
-        message: `Re-echoing: ${message}`,
+      const result = await activeApp.callServerTool({
+        name: 'echo',
+        arguments: { message: `Re-echoing: ${message}` },
       });
 
-      const text = result?.content?.[0]?.text || 'Success!';
+      if (result.structuredContent) {
+        setToolOutput(result.structuredContent);
+      }
+
+      const text =
+        result?.content?.find((item) => item.type === 'text')?.text ||
+        'Success!';
       setCallResult(text);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -60,17 +106,20 @@ export default function Echo() {
    */
   const handleRequestFullscreen = async () => {
     try {
-      await window.openai?.requestDisplayMode?.({ mode: 'fullscreen' });
+      await activeApp.requestDisplayMode({ mode: 'fullscreen' });
     } catch (err) {
       console.error('Failed to request fullscreen:', err);
     }
   };
 
+  const safeAreaInsets = hostContext?.safeAreaInsets;
+  const maxHeight = hostContext?.viewport?.maxHeight;
+
   const containerStyle = {
-    paddingTop: safeArea?.insets?.top || '8px',
-    paddingBottom: safeArea?.insets?.bottom || '8px',
-    paddingLeft: safeArea?.insets?.left || '8px',
-    paddingRight: safeArea?.insets?.right || '8px',
+    paddingTop: `${safeAreaInsets?.top ?? 8}px`,
+    paddingBottom: `${safeAreaInsets?.bottom ?? 8}px`,
+    paddingLeft: `${safeAreaInsets?.left ?? 8}px`,
+    paddingRight: `${safeAreaInsets?.right ?? 8}px`,
     maxHeight: maxHeight ? `${maxHeight}px` : '100vh',
   };
 

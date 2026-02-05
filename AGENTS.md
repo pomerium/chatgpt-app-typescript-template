@@ -4,10 +4,10 @@ This file provides guidance to AI assistants (including Claude Code at claude.ai
 
 ## Project Overview
 
-This is a ChatGPT app template built with the OpenAI Apps SDK and Model Context Protocol (MCP). The architecture consists of:
+This is an MCP Apps template built with the MCP Apps spec and Model Context Protocol (MCP). The architecture consists of:
 
 - **MCP Server** (Node.js + Express): Handles tool registration, execution, and widget resource serving
-- **React Widgets**: Interactive components rendered in ChatGPT iframes that communicate via `window.openai` API
+- **MCP App Views**: Interactive components rendered in host iframes that communicate via the MCP Apps `App` API
 - **Widget Build System**: Custom Vite-based parallel build pipeline with content hashing and auto-discovery
 
 npm workspaces split the codebase: `server/` is the MCP backend, `widgets/` houses React widgets, and shared tooling sits in `scripts/`.
@@ -71,55 +71,48 @@ npm run build:storybook  # Build Storybook for production
 
 ## Key Architectural Patterns
 
-### Base `Server` Class Usage
+### MCP Apps Server Usage
 
-This template uses the **base `Server` class** from `@modelcontextprotocol/sdk/server/index.js`, NOT the higher-level `McpServer` class. This is critical because:
+This template uses `McpServer` from `@modelcontextprotocol/sdk/server/mcp.js` with the MCP Apps helpers:
 
-- ChatGPT apps require the `_meta` field to reference widgets via `outputTemplate`
-- Higher-level abstractions may strip custom metadata fields
-- Pattern follows OpenAI's official examples
-
-When adding new tools, always preserve the `_meta.outputTemplate` structure in responses.
+- Register UI resources with `registerAppResource`
+- Register tools with `registerAppTool`
+- Include `_meta.ui.resourceUri` on tools to bind a UI resource
 
 ### Widget Resource Registration
 
-Widgets MUST be registered with the exact MIME type `text/html+skybridge` for ChatGPT to load them:
+Widgets MUST be registered with the exact MIME type `text/html;profile=mcp-app` for MCP Apps hosts to load them:
 
 ```typescript
-server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-  const { uri } = request.params;
-
-  if (uri.startsWith('ui://')) {
-    return {
-      contents: [
-        {
-          uri,
-          mimeType: 'text/html+skybridge', // CRITICAL - must be exact
-          text: html,
-        },
-      ],
-    };
-  }
-});
+registerAppResource(
+  server,
+  'ui://my-widget',
+  'ui://my-widget',
+  { mimeType: 'text/html;profile=mcp-app' }, // CRITICAL - must be exact
+  async () => ({
+    contents: [
+      {
+        uri: 'ui://my-widget',
+        mimeType: 'text/html;profile=mcp-app',
+        text: html,
+      },
+    ],
+  })
+);
 ```
 
 ### Tool Response Structure
 
-All tool responses follow this pattern:
+All tool responses follow this pattern (UI binding happens in tool metadata):
 
 ```typescript
 {
   content: [{ type: 'text', text: 'Human-readable message' }],
   structuredContent: {
-    // Data passed to widget via window.openai.toolOutput
+    // Data passed to the app via App.ontoolresult
     // Keep this under 4,000 tokens for performance
   },
-  _meta: {
-    outputTemplate: {
-      type: 'resource',
-      resource: { uri: 'ui://widget-name' }
-    }
-  }
+  // No outputTemplate required; UI linkage lives in tool _meta.ui.resourceUri
 }
 ```
 
@@ -169,10 +162,18 @@ widgets/src/
 ```tsx
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { useOpenAiGlobal } from '../hooks/use-openai-global';
+import { App } from '@modelcontextprotocol/ext-apps';
+import { useEffect, useState } from 'react';
 
 function MyWidget() {
-  const toolOutput = useOpenAiGlobal('toolOutput');
+  const [toolOutput, setToolOutput] = useState(null);
+
+  useEffect(() => {
+    const app = new App({ name: 'MyWidget', version: '1.0.0' });
+    app.ontoolresult = (result) => setToolOutput(result.structuredContent ?? null);
+    app.connect();
+  }, []);
+
   return <div>{JSON.stringify(toolOutput)}</div>;
 }
 
@@ -193,25 +194,28 @@ if (rootElement) {
 
 ### Widget Development Patterns
 
-**`useOpenAiGlobal(key)`** - Read reactive values from ChatGPT host:
+**`App` API** - Connect to the host and read tool results + context:
 
 ```typescript
-const toolOutput = useOpenAiGlobal('toolOutput'); // Tool's structuredContent
-const theme = useOpenAiGlobal('theme'); // 'light' | 'dark'
-const displayMode = useOpenAiGlobal('displayMode'); // 'inline' | 'pip' | 'fullscreen'
-const safeArea = useOpenAiGlobal('safeArea'); // Insets for layout
-const widgetState = useOpenAiGlobal('widgetState'); // Persistent state from host
+const app = new App({ name: 'Echo', version: '1.0.0' });
+app.ontoolresult = (result) => {
+  console.log(result.structuredContent);
+};
+await app.connect();
+
+const hostContext = app.getHostContext();
+const theme = hostContext?.theme; // 'light' | 'dark'
+const displayMode = hostContext?.displayMode; // 'inline' | 'pip' | 'fullscreen'
+const safeAreaInsets = hostContext?.safeAreaInsets;
 ```
 
-This hook is implemented using React's `useSyncExternalStore` for proper reactivity with the ChatGPT host's event system.
-
-**Setting Widget State** - Persist state to the host:
+**Calling tools from the UI**:
 
 ```typescript
-// Update persisted state
-await window.openai?.setWidgetState({ count: 42 });
-// State persists per message and syncs automatically
-// Keep under 4,000 tokens for optimal performance
+const result = await app.callServerTool({
+  name: 'echo',
+  arguments: { message: 'Hello' },
+});
 ```
 
 ### Zod Validation Pattern
@@ -240,8 +244,8 @@ This ensures type safety and runtime validation.
 - `widgets/src/{widget-name}/styles.css` - Component-specific styles
 - `widgets/src/{widget-name}/{Component}.stories.tsx` - Storybook stories
 - `widgets/src/components/` - Shared components (including shadcn/ui)
-- `widgets/src/hooks/use-openai-global.ts` - React hook for OpenAI API integration
-- `widgets/src/types/openai.d.ts` - TypeScript definitions for window.openai
+- `widgets/src/types/mcp-app.ts` - Lightweight MCP Apps types for UI wiring
+- `widgets/src/mocks/mock-app.ts` - Mock App implementation for tests/stories
 - `widgets/vite-plugin-widgets.ts` - Custom Vite plugin for auto-discovery and building
 
 ### Generated Assets
@@ -263,7 +267,7 @@ This ensures type safety and runtime validation.
 - Each workspace offers `npm run test:coverage`
 - Keep widget specs with Testing Library under `.test.ts[x]` filenames and store server specs in `server/tests/`
 
-### Testing ChatGPT Integration
+### Testing MCP Apps Hosts
 
 #### Local Testing with MCP Inspector
 
@@ -346,12 +350,12 @@ Requirements:
 
 ## Common Troubleshooting
 
-**Widget not loading in ChatGPT:**
+**Widget not loading in a host:**
 
-- Verify `text/html+skybridge` MIME type in resource handler
+- Verify `text/html;profile=mcp-app` MIME type in resource handler
 - Check `assets/` directory exists and contains built files
 - Rebuild widgets: `npm run build:widgets`
-- Restart server and refresh connector in ChatGPT settings
+- Restart server and refresh the connector in host settings
 
 **"Widget assets not found" error:**
 
@@ -428,7 +432,7 @@ docker-compose -f docker/docker-compose.yml up -d
 
 **Deployment Requirements:**
 
-- Deploy to publicly accessible URL (ChatGPT requires HTTPS)
+- Deploy to a publicly accessible URL (most hosts require HTTPS)
 - Ensure `assets/` directory is deployed with the server
 - Configure reverse proxy if needed (nginx, Caddy, etc.)
 - Set up SSL/TLS certificates
@@ -442,9 +446,9 @@ docker-compose -f docker/docker-compose.yml up -d
 ## Important Notes for AI Assistants
 
 - Always read `server/src/server.ts` to understand current tool implementations before modifying
-- The `_meta.outputTemplate` field is critical for widget loading - never omit it
+- The `_meta.ui.resourceUri` field is critical for UI binding - never omit it
 - Widget build is separate from server build - always run `npm run build:widgets` when modifying widgets
-- The `text/html+skybridge` MIME type is non-negotiable for ChatGPT widget loading
+- The `text/html;profile=mcp-app` MIME type is non-negotiable for MCP Apps UI loading
 - Session cleanup runs automatically but sessions are isolated - each HttpStreamable connection gets its own MCP server instance
 - Node.js 22+ is required for ES2023 features and native type stripping
-- Use `npm run inspect` for rapid local testing before connecting to ChatGPT
+- Use `npm run inspect` for rapid local testing before connecting to hosts

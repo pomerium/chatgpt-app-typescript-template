@@ -1,7 +1,7 @@
 {
   "name": "chatgpt-app-typescript-template",
   "version": "1.0.0",
-  "description": "Minimal, production-ready ChatGPT app template using OpenAI Apps SDK",
+  "description": "Minimal, production-ready MCP Apps template with React widgets",
   "type": "module",
   "private": true,
   "workspaces": [
@@ -29,10 +29,9 @@
     "type-check": "tsc --noEmit --project server && tsc --noEmit --project widgets"
   },
   "keywords": [
-    "chatgpt",
-    "openai",
-    "apps-sdk",
     "mcp",
+    "mcp-apps",
+    "apps",
     "template",
     "react",
     "typescript"

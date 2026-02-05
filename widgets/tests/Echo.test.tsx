@@ -1,63 +1,47 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import Echo from '../src/echo/Echo.js';
+import { createMockApp } from '../src/mocks/mock-app.js';
+import type { EchoToolOutput } from 'chatgpt-app-server/types';
 
 describe('Echo', () => {
-  it('should render the message', () => {
-    render(<Echo message="Test Message" />);
+  it('should render the echoed message', async () => {
+    render(
+      <Echo
+        app={createMockApp<EchoToolOutput>({
+          toolOutput: {
+            echoedMessage: 'Test Message',
+            timestamp: new Date().toISOString(),
+          },
+        })}
+      />
+    );
 
-    const messages = screen.getAllByText(/Test Message/i);
-    expect(messages.length).toBeGreaterThan(0);
+    expect(await screen.findByText(/Test Message/i)).toBeInTheDocument();
   });
 
-  it('should have proper ARIA attributes', () => {
-    render(<Echo message="Accessible Message" />);
+  it('should show a fallback message when empty', async () => {
+    render(<Echo app={createMockApp<EchoToolOutput>({ toolOutput: null })} />);
 
-    const region = screen.getByRole('region', { name: /echo marquee/i });
-    expect(region).toBeInTheDocument();
+    expect(await screen.findByText(/No message yet/i)).toBeInTheDocument();
   });
 
-  it('should apply default speed when not specified', () => {
-    const { container } = render(<Echo message="Default Speed" />);
+  it('should render action buttons', async () => {
+    render(
+      <Echo
+        app={createMockApp<EchoToolOutput>({
+          toolOutput: {
+            echoedMessage: 'Action Test',
+            timestamp: new Date().toISOString(),
+          },
+        })}
+      />
+    );
 
-    const marqueeContent = container.querySelector('.marquee-content');
-    expect(marqueeContent).toBeInTheDocument();
-  });
-
-  it('should handle custom speed prop', () => {
-    const { container } = render(<Echo message="Fast" speed={100} />);
-
-    const marqueeContent = container.querySelector('.marquee-content');
-    expect(marqueeContent).toBeInTheDocument();
-  });
-
-  it('should display message with proper styling', () => {
-    const { container } = render(<Echo message="Styled Message" />);
-
-    const marqueeContainer = container.querySelector('.marquee-container');
-    expect(marqueeContainer).toBeInTheDocument();
-    expect(marqueeContainer).toHaveClass('marquee-container');
-  });
-
-  it('should duplicate message for seamless loop', () => {
-    render(<Echo message="Loop Test" />);
-
-    const allText = screen.getAllByText(/Loop Test/);
-    expect(allText.length).toBeGreaterThan(1);
-  });
-
-  it('should handle empty message gracefully', () => {
-    const { container } = render(<Echo message="" />);
-
-    const marqueeContainer = container.querySelector('.marquee-container');
-    expect(marqueeContainer).toBeInTheDocument();
-  });
-
-  it('should handle very long messages', () => {
-    const longMessage = 'A'.repeat(500);
-    render(<Echo message={longMessage} />);
-
-    const region = screen.getByRole('region');
-    expect(region).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /call echo tool/i }))
+      .toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /clear result/i })
+    ).toBeInTheDocument();
   });
 });

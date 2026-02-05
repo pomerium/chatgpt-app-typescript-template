@@ -1,12 +1,12 @@
-# ChatGPT App Template
+# MCP Apps Template
 
-A well-architected starter template demonstrating best practices for building [ChatGPT apps](https://developers.openai.com/apps-sdk/) using the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) with [React](https://react.dev/) widgets. It leverages TypeScript, Tailwind CSS v4, Pino logging, Storybook, and Vitest for a robust development experience.
+A well-architected starter template demonstrating best practices for building MCP Apps using the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) with [React](https://react.dev/) widgets. It leverages TypeScript, Tailwind CSS v4, Pino logging, Storybook, and Vitest for a robust development experience.
 
 ## Features
 
-- **MCP Server** - Node.js server with base `Server` class (preserves `_meta` fields)
-- **Echo Tool** - Example tool with [Zod](https://zod.dev/) validation and widget response
-- **React Widgets** - Interactive Echo component with `callTool` demo
+- **MCP Server** - Node.js server with `McpServer` and MCP Apps helpers
+- **Echo Tool** - Example tool with [Zod](https://zod.dev/) validation and UI binding
+- **React Widgets** - Interactive Echo component with MCP Apps `App` API demo
 - **[Pino](https://getpino.io/) Logging** - Structured logging with pretty printing in development
 - **TypeScript** - Strict mode with ES2023 target
 - **[Tailwind CSS v4](https://tailwindcss.com/)** - Modern styling with dark mode support
@@ -20,15 +20,15 @@ A well-architected starter template demonstrating best practices for building [C
 
 ```mermaid
 graph TD
-    A[ChatGPT] -->|HTTPStreamable| B[MCP Server<br/>Node.js + Express]
-    B -->|_meta.outputTemplate| C[Widget<br/>React in iframe]
+    A[MCP Host] -->|HTTPStreamable| B[MCP Server<br/>Node.js + Express]
+    B -->|_meta.ui.resourceUri| C[App View<br/>React in iframe]
 
     B -.-> B1[Echo Tool]
     B -.-> B2[Resource Registration]
-    B -.-> B3[text/html+skybridge<br/>MIME type]
+    B -.-> B3[text/html;profile=mcp-app<br/>MIME type]
 
-    C -.-> C1[Reads window.openai.toolOutput]
-    C -.-> C2[Calls window.openai.callTool]
+    C -.-> C1[Receives App.ontoolresult]
+    C -.-> C2[Calls App.callServerTool]
     C -.-> C3[Theme, displayMode, safeArea]
 
     style A fill:#e1f5ff
@@ -63,7 +63,7 @@ This starts both the MCP server and widget dev server:
 - **MCP Server**: `http://localhost:8080`
 - **Widget Assets**: `http://localhost:4444`
 
-> **Note:** The MCP server is a backend service. To test it, follow the ChatGPT connection steps below or use `npm run inspect` for local testing.
+> **Note:** The MCP server is a backend service. To test it, follow the host connection steps below (ChatGPT example) or use `npm run inspect` for local testing.
 
 You should see output indicating both servers are running successfully:
 
@@ -98,7 +98,7 @@ You should see output indicating both servers are running successfully:
 [1]
 [1]   ➜  Local:   http://localhost:4444/
 [1]   ➜  Network: use --host to expose
-[0] [12:45:12] INFO: Starting ChatGPT App Template server
+[0] [12:45:12] INFO: Starting MCP App Template server
 [0]     port: 8080
 [0]     nodeEnv: "development"
 [0]     logLevel: "info"
@@ -109,7 +109,7 @@ You should see output indicating both servers are running successfully:
 [0]     healthEndpoint: "http://localhost:8080/health"
 ```
 
-### Connect to ChatGPT
+### Connect to a Host (ChatGPT example)
 
 To test your app in ChatGPT, you need to expose your local server publicly. The fastest way is using [Pomerium's SSH tunnel](https://www.pomerium.com/docs/tcp/ssh):
 
@@ -144,7 +144,7 @@ Look for the **Port Forward Status** section showing:
 
 **3. Add to ChatGPT:**
 
-1. [Enable ChatGPT apps dev mode](https://platform.openai.com/docs/guides/developer-mode) in your ChatGPT settings
+1. Enable MCP apps dev mode in your ChatGPT settings
 2. Go to: **Settings → Connectors → Add Connector**
 3. Enter your Remote URL + `/mcp`, e.g. `https://template.first-wallaby-240.pom.run/mcp`
 4. Save the connector
@@ -160,13 +160,15 @@ Look for the **Port Forward Status** section showing:
 
 The tunnel stays active as long as the SSH session is running.
 
+**Other hosts:** Claude Desktop, VS Code, Goose, and other MCP Apps hosts follow the same pattern—add a connector to your `/mcp` endpoint and refresh after changes.
+
 ### Success! What's Next?
 
 Now that your app is working, you can:
 
 - **[Customize the echo tool](#adding-new-tools)** - Modify the example tool or add your own logic
 - **[Create a new widget](#widget-development)** - Build custom UI components for your tools
-- **[Test locally](#local-testing-with-mcp-inspector)** - Use `npm run inspect` for debugging without ChatGPT
+- **[Test locally](#local-testing-with-mcp-inspector)** - Use `npm run inspect` for debugging without a host
 - **[Deploy to production](#production-deployment)** - Take your app live when ready
 
 ## Available Commands
@@ -259,7 +261,7 @@ This opens a browser interface to:
 
 #### 2. Connect from ChatGPT
 
-For complete ChatGPT connection instructions, see the [Quick Start: Connect to ChatGPT](#connect-to-chatgpt) section above.
+For complete ChatGPT connection instructions, see the [Quick Start: Connect to a Host](#connect-to-a-host-chatgpt-example) section above.
 
 **Already connected?** After making code changes:
 
@@ -299,10 +301,10 @@ chatgpt-app-template/
 │   │   │   └── styles.css
 │   │   ├── components/
 │   │   │   └── ui/              # ShadCN components
-│   │   ├── hooks/
-│   │   │   └── use-openai-global.ts
+│   │   ├── mocks/
+│   │   │   └── mock-app.ts       # MCP Apps mock for tests/stories
 │   │   └── types/
-│   │       └── openai.d.ts
+│   │       └── mcp-app.ts        # MCP Apps types for UI wiring
 │   ├── .storybook/         # Storybook config
 │   └── package.json        # Widget dependencies
 │
@@ -326,42 +328,40 @@ chatgpt-app-template/
 ### 1. Define Tool Schema
 
 ```typescript
-// server/src/server.ts
-
-const myTool: Tool = {
-  name: 'my_tool',
-  description: 'Does something cool',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      input: { type: 'string', description: 'Tool input' },
-    },
-    required: ['input'],
-  },
-};
+// server/src/types.ts
+export const MyToolInputSchema = z.object({
+  input: z.string().min(1, 'Input is required'),
+});
 ```
 
-### 2. Implement Tool Handler
+### 2. Register Tool (with UI)
 
 ```typescript
-// In CallToolRequestSchema handler
-
-if (name === 'my_tool') {
-  const args = MyToolInputSchema.parse(request.params.arguments);
-
-  return {
-    content: [{ type: 'text', text: 'Result' }],
-    structuredContent: {
-      result: args.input,
+registerAppTool(
+  server,
+  'my_tool',
+  {
+    title: 'My Tool',
+    description: 'Does something cool',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        input: { type: 'string', description: 'Tool input' },
+      },
+      required: ['input'],
     },
     _meta: {
-      outputTemplate: {
-        type: 'resource',
-        resource: { uri: 'ui://my-widget' },
-      },
+      ui: { resourceUri: 'ui://my-widget' },
     },
-  };
-}
+  },
+  async (args) => {
+    const input = MyToolInputSchema.parse(args).input;
+    return {
+      content: [{ type: 'text', text: 'Result' }],
+      structuredContent: { result: input },
+    };
+  }
+);
 ```
 
 ### 3. Create Widget
@@ -372,11 +372,19 @@ Create `widgets/src/widgets/my-widget.tsx`:
 // widgets/src/widgets/my-widget.tsx
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { useOpenAiGlobal } from '../hooks/use-openai-global';
+import { App } from '@modelcontextprotocol/ext-apps';
+import { useEffect, useState } from 'react';
 
 function MyWidget() {
-  const toolOutput = useOpenAiGlobal('toolOutput');
-  const theme = useOpenAiGlobal('theme');
+  const [toolOutput, setToolOutput] = useState(null);
+  const [theme, setTheme] = useState('light');
+
+  useEffect(() => {
+    const app = new App({ name: 'MyWidget', version: '1.0.0' });
+    app.ontoolresult = (result) => setToolOutput(result.structuredContent ?? null);
+    app.onhostcontextchanged = (context) => setTheme(context?.theme ?? 'light');
+    app.connect();
+  }, []);
 
   return (
     <div className={theme === 'dark' ? 'dark' : ''}>
@@ -400,20 +408,21 @@ if (rootElement) {
 ### 4. Register Widget Resource
 
 ```typescript
-// In ReadResourceRequestSchema handler
-
-if (uri === 'ui://my-widget') {
-  const html = readWidgetHtml('my-widget');
-  return {
+registerAppResource(
+  server,
+  'ui://my-widget',
+  'ui://my-widget',
+  { mimeType: RESOURCE_MIME_TYPE },
+  async () => ({
     contents: [
       {
-        uri,
-        mimeType: 'text/html+skybridge', // CRITICAL!
-        text: html,
+        uri: 'ui://my-widget',
+        mimeType: RESOURCE_MIME_TYPE,
+        text: await readWidgetHtml('my-widget'),
       },
     ],
-  };
-}
+  })
+);
 ```
 
 ### 5. Build
@@ -436,10 +445,17 @@ Widgets include both the component and mounting code:
 ```tsx
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { useOpenAiGlobal } from '../hooks/use-openai-global';
+import { useEffect, useState } from 'react';
+import { App } from '@modelcontextprotocol/ext-apps';
 
 function MyWidget() {
-  const toolOutput = useOpenAiGlobal('toolOutput');
+  const [toolOutput, setToolOutput] = useState(null);
+
+  useEffect(() => {
+    const app = new App({ name: 'MyWidget', version: '1.0.0' });
+    app.ontoolresult = (result) => setToolOutput(result.structuredContent ?? null);
+    app.connect();
+  }, []);
   return <div>Widget content</div>;
 }
 
@@ -468,84 +484,72 @@ The build system:
 - Bundles the component and mounting code together
 - Creates content-hashed bundles and HTML templates
 
-### window.openai API Reference
+### MCP Apps `App` API Reference
 
-#### State & Data
-
-```typescript
-const toolOutput = useOpenAiGlobal('toolOutput'); // Tool's structured content
-const toolInput = useOpenAiGlobal('toolInput'); // Tool arguments
-const widgetState = useOpenAiGlobal('widgetState'); // Persistent state from host
-```
-
-**Setting State**: Use `window.openai.setWidgetState(newState)` to persist state.
-
-**State Limits**: Keep `widgetState` under **4,000 tokens** for optimal performance.
-
-#### Context Signals
+#### Tool Results & Host Context
 
 ```typescript
-const theme = useOpenAiGlobal('theme'); // 'light' | 'dark'
-const displayMode = useOpenAiGlobal('displayMode'); // 'inline' | 'pip' | 'fullscreen'
-const maxHeight = useOpenAiGlobal('maxHeight'); // Max height in pixels
-const safeArea = useOpenAiGlobal('safeArea'); // Insets for responsive layout
-const viewport = useOpenAiGlobal('viewport'); // { width, height }
-const locale = useOpenAiGlobal('locale'); // User locale (e.g., 'en-US')
+const app = new App({ name: 'Echo', version: '1.0.0' });
+app.ontoolresult = (result) => {
+  console.log(result.structuredContent);
+};
+app.onhostcontextchanged = (context) => {
+  console.log(context?.theme, context?.displayMode);
+};
+await app.connect();
 ```
 
 #### Runtime APIs
 
 ```typescript
-// Call other tools from widget
-const result = await window.openai?.callTool('tool_name', { arg: 'value' });
+// Call other tools from the app
+const result = await app.callServerTool({
+  name: 'tool_name',
+  arguments: { arg: 'value' },
+});
 
 // Toggle display mode
-await window.openai?.requestDisplayMode({ mode: 'fullscreen' });
-
-// Send follow-up message
-await window.openai?.sendFollowUpMessage({ prompt: 'Continue...' });
-
-// File operations
-const { fileId } = await window.openai?.uploadFile(file);
-const { url } = await window.openai?.getFileDownloadUrl({ fileId });
-
-// Open external links
-window.openai?.openExternal({ href: 'https://example.com' });
-
-// Close widget
-await window.openai?.requestClose();
+await app.requestDisplayMode({ mode: 'fullscreen' });
 ```
 
 ### Example: Full Widget with Safe Area
 
 ```tsx
 // widgets/src/widgets/my-widget.tsx
-import { StrictMode, useState } from 'react';
+import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { useOpenAiGlobal } from '../hooks/use-openai-global';
+import { App } from '@modelcontextprotocol/ext-apps';
 
 function MyWidget() {
-  const toolOutput = useOpenAiGlobal('toolOutput');
-  const theme = useOpenAiGlobal('theme');
-  const safeArea = useOpenAiGlobal('safeArea');
-  const widgetState = useOpenAiGlobal('widgetState');
+  const [toolOutput, setToolOutput] = useState(null);
+  const [theme, setTheme] = useState('light');
+  const [safeAreaInsets, setSafeAreaInsets] = useState({
+    top: 0,
+    bottom: 0,
+  });
 
-  const count = widgetState?.count ?? 0;
+  useEffect(() => {
+    const app = new App({ name: 'MyWidget', version: '1.0.0' });
+    app.ontoolresult = (result) => setToolOutput(result.structuredContent ?? null);
+    app.onhostcontextchanged = (context) => {
+      setTheme(context?.theme ?? 'light');
+      setSafeAreaInsets({
+        top: context?.safeAreaInsets?.top ?? 0,
+        bottom: context?.safeAreaInsets?.bottom ?? 0,
+      });
+    };
+    app.connect();
+  }, []);
 
   const containerStyle = {
-    paddingTop: safeArea?.insets?.top || 0,
-    paddingBottom: safeArea?.insets?.bottom || 0,
-  };
-
-  const handleIncrement = () => {
-    window.openai?.setWidgetState({ count: count + 1 });
+    paddingTop: safeAreaInsets.top,
+    paddingBottom: safeAreaInsets.bottom,
   };
 
   return (
     <div style={containerStyle} className={theme === 'dark' ? 'dark' : ''}>
       <h1>My Widget</h1>
       <p>Tool output: {JSON.stringify(toolOutput)}</p>
-      <button onClick={handleIncrement}>Count: {count}</button>
     </div>
   );
 }
@@ -585,16 +589,16 @@ CORS_ORIGIN=*
 
 ### Critical Configuration Notes
 
-#### text/html+skybridge MIME Type
+#### text/html;profile=mcp-app MIME Type
 
-**Required** for widgets to load in ChatGPT:
+**Required** for MCP Apps hosts to load UI:
 
 ```typescript
 return {
   contents: [
     {
       uri: 'ui://my-widget',
-      mimeType: 'text/html+skybridge', // ← CRITICAL
+      mimeType: 'text/html;profile=mcp-app', // ← CRITICAL
       text: html,
     },
   ],
@@ -641,16 +645,11 @@ return {
 {
   content: [{ type: 'text', text: 'Human-readable message' }],
   structuredContent: {
-    // JSON data passed to widget via window.openai.toolOutput
+    // JSON data passed to the app via App.ontoolresult
     echoedMessage: 'Hello',
     timestamp: '2025-01-...'
   },
-  _meta: {
-    outputTemplate: {
-      type: 'resource',
-      resource: { uri: 'ui://echo' }
-    }
-  }
+  // UI binding is defined in tool _meta.ui.resourceUri
 }
 ```
 
@@ -684,7 +683,7 @@ npm run test:coverage
 - Component rendering
 - User interactions
 - Accessibility (a11y) compliance
-- window.openai API mocking
+- MCP Apps App API mocking
 
 ### MCP Inspector Workflow
 
@@ -774,7 +773,7 @@ curl http://localhost:8080/health
 
 **Deployment Requirements:**
 
-- Deploy to a publicly accessible URL (ChatGPT requires HTTPS)
+- Deploy to a publicly accessible URL (most hosts require HTTPS)
 - Ensure `assets/` directory is deployed with the server
 - Configure reverse proxy if needed (nginx, Caddy, etc.)
 - Set up SSL/TLS certificates
@@ -789,18 +788,18 @@ curl http://localhost:8080/health
 
 ### Widget Not Loading
 
-**Symptom**: Widget doesn't appear in ChatGPT
+**Symptom**: Widget doesn't appear in a host
 
 **Solutions**:
 
-1. Verify `text/html+skybridge` MIME type in resource registration
+1. Verify `text/html;profile=mcp-app` MIME type in resource registration
 2. Check assets directory exists: `ls assets/`
 3. Rebuild widgets: `npm run build:widgets`
-4. Restart server and refresh connector in ChatGPT
+4. Restart server and refresh connector in the host
 
 ### Tool Not Listed
 
-**Symptom**: Tool doesn't appear in ChatGPT
+**Symptom**: Tool doesn't appear in a host
 
 **Solutions**:
 
@@ -846,7 +845,7 @@ curl http://localhost:8080/health
 
 The template uses the **base `Server` class** from `@modelcontextprotocol/sdk/server/index.js`, not the higher-level `McpServer` class, because:
 
-- ChatGPT apps require the `_meta` field for widget references
+- MCP Apps hosts require `_meta.ui.resourceUri` for UI binding
 - Higher-level abstractions might strip custom metadata
 - Proven pattern from OpenAI's official examples
 
@@ -885,7 +884,7 @@ MIT
 
 **Built with**:
 
-- [OpenAI Apps SDK](https://developers.openai.com/apps-sdk/)
+- [MCP Apps Spec](https://modelcontextprotocol.github.io/ext-apps/api/)
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 - [React 19](https://react.dev/)
 - [Tailwind CSS v4](https://tailwindcss.com/)
