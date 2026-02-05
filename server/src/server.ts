@@ -7,24 +7,15 @@ import { config } from 'dotenv';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
 import { v4 as uuidv4 } from 'uuid';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
+import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  ListResourcesRequestSchema,
-  ListResourceTemplatesRequestSchema,
-  ReadResourceRequestSchema,
-  isInitializeRequest,
-  type CallToolRequest,
-  type CallToolResult,
-  type ListToolsRequest,
-  type ListResourcesRequest,
-  type ListResourceTemplatesRequest,
-  type ReadResourceRequest,
-  type Tool,
-} from '@modelcontextprotocol/sdk/types.js';
+  registerAppResource,
+  registerAppTool,
+  RESOURCE_MIME_TYPE,
+} from '@modelcontextprotocol/ext-apps/server';
 import { SessionManager } from './utils/session.js';
 import {
   EchoToolInputSchema,
@@ -120,113 +111,71 @@ async function readWidgetHtml(widgetId: string): Promise<string> {
 /**
  * Create an MCP server instance with echo tool
  */
-function createMcpServer(sessionId: string): Server {
-  const server = new Server(
-    {
-      name: 'chatgpt-app-template',
-      version: '1.0.0',
-    },
-    {
-      capabilities: {
-        tools: {},
-        resources: {},
-      },
-    }
-  );
+function createMcpServer(sessionId: string): McpServer {
+  const server = new McpServer({
+    name: 'mcp-app-template',
+    version: '1.0.0',
+  });
 
   const sessionLogger = logger.child({ sessionId });
 
-  const echoTool: Tool = {
-    name: 'echo',
-    description: "Echoes back the user's message in an interactive widget",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-          description: 'The message to echo back',
+  const resourceUri = ECHO_WIDGET.uri;
+
+  registerAppResource(
+    server,
+    resourceUri,
+    resourceUri,
+    { mimeType: RESOURCE_MIME_TYPE },
+    async () => {
+      const widgetId = resourceUri.replace('ui://', '');
+      try {
+        const html = await readWidgetHtml(widgetId);
+
+        sessionLogger.info({ resourceUri, widgetId }, 'Widget resource loaded');
+
+        return {
+          contents: [
+            {
+              uri: resourceUri,
+              mimeType: RESOURCE_MIME_TYPE,
+              text: html,
+            },
+          ],
+        };
+      } catch (err) {
+        sessionLogger.error(
+          { err, resourceUri, widgetId },
+          'Failed to load widget'
+        );
+        throw err;
+      }
+    }
+  );
+
+  registerAppTool(
+    server,
+    'echo',
+    {
+      title: 'Echo',
+      description: "Echoes back the user's message in an interactive view",
+      inputSchema: {
+        type: 'object',
+        properties: {
+          message: {
+            type: 'string',
+            description: 'The message to echo back',
+          },
+        },
+        required: ['message'],
+      },
+      _meta: {
+        ui: {
+          resourceUri,
         },
       },
-      required: ['message'],
     },
-    // MCP tool annotations help ChatGPT understand tool behavior:
-    // - readOnlyHint: If true, the tool does not modify its environment
-    // - destructiveHint: If true, the tool may perform destructive updates
-    // - idempotentHint: If true, repeated calls with same args have no additional effect
-    // - openWorldHint: If true, tool interacts with external entities (like the web or external systems)
-    // See: https://www.nickyt.co/blog/quick-fix-my-mcp-tools-were-showing-as-write-tools-in-chatgpt-dev-mode-3id9/
-    annotations: {
-      readOnlyHint: true,
-      openWorldHint: true,
-    },
-    _meta: {
-      'openai/outputTemplate': ECHO_WIDGET.uri,
-      'openai/widgetAccessible': true,
-      'openai/resultCanProduceWidget': true,
-    },
-  };
-
-  server.setRequestHandler(
-    ListToolsRequestSchema,
-    async (_request: ListToolsRequest) => {
-      sessionLogger.debug('Listing tools');
-      return {
-        tools: [echoTool],
-      };
-    }
-  );
-
-  server.setRequestHandler(
-    ListResourcesRequestSchema,
-    async (_request: ListResourcesRequest) => {
-      sessionLogger.debug('Listing resources');
-      return {
-        resources: [
-          {
-            uri: ECHO_WIDGET.uri,
-            name: ECHO_WIDGET.title,
-            description: 'Interactive widget for displaying echoed messages',
-            mimeType: 'text/html+skybridge',
-          },
-        ],
-      };
-    }
-  );
-
-  server.setRequestHandler(
-    ListResourceTemplatesRequestSchema,
-    async (_request: ListResourceTemplatesRequest) => {
-      sessionLogger.debug('Listing resource templates');
-      return {
-        resourceTemplates: [
-          {
-            uriTemplate: ECHO_WIDGET.uri,
-            name: ECHO_WIDGET.title,
-            description: 'Interactive widget for displaying echoed messages',
-            mimeType: 'text/html+skybridge',
-            _meta: {
-              'openai/outputTemplate': ECHO_WIDGET.uri,
-              'openai/widgetAccessible': true,
-              'openai/resultCanProduceWidget': true,
-            },
-          },
-        ],
-      };
-    }
-  );
-
-  server.setRequestHandler(
-    CallToolRequestSchema,
-    async (request: CallToolRequest): Promise<CallToolResult> => {
-      const { name, arguments: args } = request.params;
-
-      sessionLogger.info({ toolName: name, args }, 'Tool invoked');
-
-      if (name !== 'echo') {
-        const error = `Unknown tool: ${name}`;
-        sessionLogger.error({ toolName: name }, error);
-        throw new Error(error);
-      }
+    async (args) => {
+      sessionLogger.info({ toolName: 'echo', args }, 'Tool invoked');
 
       try {
         const validatedInput = EchoToolInputSchema.parse(args || {});
@@ -246,60 +195,11 @@ function createMcpServer(sessionId: string): Server {
             },
           ],
           structuredContent: output,
-          _meta: {
-            outputTemplate: {
-              type: 'resource',
-              resource: {
-                uri: ECHO_WIDGET.uri,
-              },
-            },
-          },
         };
       } catch (err) {
-        sessionLogger.error({ err, toolName: name }, 'Tool execution failed');
+        sessionLogger.error({ err, toolName: 'echo' }, 'Tool execution failed');
         throw err;
       }
-    }
-  );
-
-  server.setRequestHandler(
-    ReadResourceRequestSchema,
-    async (request: ReadResourceRequest) => {
-      const { uri } = request.params;
-
-      sessionLogger.debug({ uri }, 'Reading resource');
-
-      if (uri.startsWith('ui://')) {
-        const widgetId = uri.replace('ui://', '');
-
-        if (widgetId === ECHO_WIDGET.id) {
-          try {
-            const html = await readWidgetHtml(widgetId);
-
-            sessionLogger.info({ uri, widgetId }, 'Widget resource loaded');
-
-            return {
-              contents: [
-                {
-                  uri,
-                  mimeType: 'text/html+skybridge', // CRITICAL for ChatGPT widget runtime
-                  text: html,
-                },
-              ],
-            };
-          } catch (err) {
-            sessionLogger.error(
-              { err, uri, widgetId },
-              'Failed to load widget'
-            );
-            throw err;
-          }
-        }
-      }
-
-      const error = `Unknown resource: ${uri}`;
-      sessionLogger.error({ uri }, error);
-      throw new Error(error);
     }
   );
 
@@ -317,7 +217,7 @@ async function main() {
       logLevel: LOG_LEVEL,
       assetsDir: ASSETS_DIR,
     },
-    'Starting ChatGPT App Template server'
+    'Starting MCP App Template server'
   );
 
   const app = express();
