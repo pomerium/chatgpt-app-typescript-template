@@ -11,6 +11,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
 import {
   registerAppResource,
   registerAppTool,
@@ -172,14 +173,7 @@ function createMcpServer(sessionId: string): McpServer {
       title: 'Echo',
       description: "Echoes back the user's message in an interactive view",
       inputSchema: {
-        type: 'object',
-        properties: {
-          message: {
-            type: 'string',
-            description: 'The message to echo back',
-          },
-        },
-        required: ['message'],
+        message: z.string().describe('The message to echo back to the user.'),
       },
       _meta: {
         ui: {
@@ -191,10 +185,10 @@ function createMcpServer(sessionId: string): McpServer {
       sessionLogger.info({ toolName: 'echo', args }, 'Tool invoked');
 
       try {
-        const validatedInput = EchoToolInputSchema.parse(args || {});
+        const { message } = EchoToolInputSchema.parse(args);
 
         const output = {
-          echoedMessage: validatedInput.message,
+          echoedMessage: message,
           timestamp: new Date().toISOString(),
         } satisfies EchoToolOutput;
 
@@ -204,7 +198,7 @@ function createMcpServer(sessionId: string): McpServer {
           content: [
             {
               type: 'text',
-              text: `Echoing: "${validatedInput.message}"`,
+              text: `Echoing: "${message}"`,
             },
           ],
           structuredContent: output,
