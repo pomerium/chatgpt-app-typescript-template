@@ -37,6 +37,7 @@ const SESSION_MAX_AGE = Number(process.env.SESSION_MAX_AGE || '3600000');
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 const WIDGET_PORT = Number(process.env.WIDGET_PORT || '4444');
 const { BASE_URL = '' } = process.env;
+const INLINE_WIDGET_ASSETS = process.env.INLINE_WIDGET_ASSETS === 'true';
 
 const logger = pino({
   level: LOG_LEVEL,
@@ -63,7 +64,7 @@ const ECHO_WIDGET: WidgetDescriptor = {
  * Read widget HTML - from Vite dev server in development, from assets in production
  */
 async function readWidgetHtml(widgetId: string): Promise<string> {
-  if (NODE_ENV === 'development') {
+  if (NODE_ENV === 'development' && !INLINE_WIDGET_ASSETS) {
     try {
       const url = `http://localhost:${WIDGET_PORT}/${widgetId}.html`;
       logger.debug({ url }, 'Fetching widget HTML from Vite dev server');
@@ -122,6 +123,47 @@ async function readWidgetHtml(widgetId: string): Promise<string> {
   return fs.readFileSync(htmlPath, 'utf-8');
 }
 
+function inlineWidgetAssets(html: string): string {
+  let nextHtml = html;
+  const scripts = Array.from(
+    html.matchAll(/<script[^>]*type="module"[^>]*src="([^"]+)"[^>]*><\/script>/g)
+  );
+  for (const match of scripts) {
+    const src = match[1];
+    const filename = path.basename(src.split('?')[0]);
+    const assetPath = path.join(ASSETS_DIR, filename);
+    if (!fs.existsSync(assetPath)) {
+      logger.warn({ assetPath }, 'Inline asset missing, leaving script tag as-is');
+      continue;
+    }
+    const js = fs.readFileSync(assetPath, 'utf-8');
+    const inlineTag = `<script type="module">\n${js}\n</script>`;
+    nextHtml = nextHtml.replace(match[0], inlineTag);
+  }
+
+  const styles = Array.from(
+    html.matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/g)
+  );
+  for (const match of styles) {
+    const href = match[1];
+    const filename = path.basename(href.split('?')[0]);
+    const assetPath = path.join(ASSETS_DIR, filename);
+    if (!fs.existsSync(assetPath)) {
+      logger.warn({ assetPath }, 'Inline asset missing, leaving style tag as-is');
+      continue;
+    }
+    const css = fs.readFileSync(assetPath, 'utf-8');
+    const inlineTag = `<style>\n${css}\n</style>`;
+    nextHtml = nextHtml.replace(match[0], inlineTag);
+  }
+
+  nextHtml = nextHtml
+    .replace(/<link[^>]*rel="modulepreload"[^>]*>/g, '')
+    .replace(/<link[^>]*rel="preload"[^>]*as="style"[^>]*>/g, '');
+
+  return nextHtml;
+}
+
 /**
  * Create an MCP server instance with echo tool
  */
@@ -144,15 +186,40 @@ function createMcpServer(sessionId: string): McpServer {
       const widgetId = resourceUri.replace('ui://', '');
       try {
         const html = await readWidgetHtml(widgetId);
+        const devWidgetOrigin = `http://localhost:${WIDGET_PORT}`;
+        const devWidgetOriginAlt = `http://127.0.0.1:${WIDGET_PORT}`;
+        const devCspMeta =
+          NODE_ENV === 'development' && !INLINE_WIDGET_ASSETS
+            ? {
+                ui: {
+                  csp: {
+                    resourceDomains: [devWidgetOrigin, devWidgetOriginAlt],
+                    scriptDomains: [devWidgetOrigin, devWidgetOriginAlt],
+                    styleDomains: [devWidgetOrigin, devWidgetOriginAlt],
+                    connectDomains: [
+                      devWidgetOrigin,
+                      devWidgetOriginAlt,
+                      devWidgetOrigin.replace('http://', 'ws://'),
+                      devWidgetOriginAlt.replace('http://', 'ws://'),
+                    ],
+                  },
+                },
+              }
+            : undefined;
 
         sessionLogger.info({ resourceUri, widgetId }, 'Widget resource loaded');
+
+        const finalHtml = INLINE_WIDGET_ASSETS
+          ? inlineWidgetAssets(html)
+          : html;
 
         return {
           contents: [
             {
               uri: resourceUri,
               mimeType: RESOURCE_MIME_TYPE,
-              text: html,
+              text: finalHtml,
+              _meta: devCspMeta,
             },
           ],
         };
@@ -172,9 +239,7 @@ function createMcpServer(sessionId: string): McpServer {
     {
       title: 'Echo',
       description: "Echoes back the user's message in an interactive view",
-      inputSchema: {
-        message: z.string().describe('The message to echo back to the user.'),
-      },
+      inputSchema: EchoToolInputSchema.shape,
       _meta: {
         ui: {
           resourceUri,
@@ -185,7 +250,25 @@ function createMcpServer(sessionId: string): McpServer {
       sessionLogger.info({ toolName: 'echo', args }, 'Tool invoked');
 
       try {
-        const { message } = EchoToolInputSchema.parse(args);
+        const result = EchoToolInputSchema.safeParse(args);
+
+        if (!result.success) {
+          sessionLogger.error(
+            { err: result.error, toolName: 'echo' },
+            'Validation failed'
+          );
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error: ${result.error.errors.map((e) => e.message).join(', ')}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const { message } = result.data;
 
         const output = {
           echoedMessage: message,
