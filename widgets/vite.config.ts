@@ -5,10 +5,12 @@ import compression from 'vite-plugin-compression';
 import { widgetDiscoveryPlugin } from './vite-plugin-widgets';
 import path from 'path';
 
-const isProd = process.env.NODE_ENV === 'production';
 const widgetPort = Number(process.env.WIDGET_PORT || 4444);
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const isProd = mode === 'production' || process.env.NODE_ENV === 'production';
+
+  return {
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -71,4 +73,5 @@ export default defineConfig({
     jsxImportSource: 'react',
     target: 'es2023',
   },
+  };
 });

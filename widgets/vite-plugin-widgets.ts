@@ -136,11 +136,17 @@ export function widgetDiscoveryPlugin(): Plugin {
           throw new Error(`Widget not found: ${widgetName}`);
         }
 
+        const isDev = config?.command === 'serve';
         const toFs = (abs: string) => '/@fs/' + abs.replace(/\\/g, '/');
-        const widgetPath = toFs(widget.path);
+        const toRelative = (abs: string) => {
+          const rel = path.relative(process.cwd(), abs).replace(/\\/g, '/');
+          return rel.startsWith('.') ? rel : `./${rel}`;
+        };
+        const widgetPath = isDev ? toFs(widget.path) : toRelative(widget.path);
 
         return {
-          code: `import "/@vite/client";
+          code: isDev
+            ? `import "/@vite/client";
 
 import RefreshRuntime from "/@react-refresh";
 
@@ -152,7 +158,9 @@ if (!window.__vite_plugin_react_preamble_installed__) {
 }
 
 import "./src/index.css";
-await import(${JSON.stringify(widgetPath)});`,
+await import(${JSON.stringify(widgetPath)});`
+            : `import "./src/index.css";
+import ${JSON.stringify(widgetPath)};`,
           map: null,
         };
       }
