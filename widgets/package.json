@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "serve": "serve -s ../assets -p ${WIDGET_PORT:-4444} --cors",
+    "serve": "serve ../assets -p ${WIDGET_PORT:-4444} --cors",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
