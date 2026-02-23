@@ -38,12 +38,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const ASSETS_DIR = path.resolve(ROOT_DIR, 'assets');
 
-const PORT = parseInt(process.env.PORT || '8080', 10);
+const PORT = Number(process.env.PORT || '8080');
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
-const SESSION_MAX_AGE = parseInt(process.env.SESSION_MAX_AGE || '3600000', 10);
+const SESSION_MAX_AGE = Number(process.env.SESSION_MAX_AGE || '3600000');
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
-const WIDGET_PORT = parseInt(process.env.WIDGET_PORT || '4444', 10);
+const WIDGET_PORT = Number(process.env.WIDGET_PORT || '4444');
+const { BASE_URL = '' } = process.env;
 
 const logger = pino({
   level: LOG_LEVEL,
@@ -100,6 +101,18 @@ async function readWidgetHtml(widgetId: string): Promise<string> {
         'Failed to fetch from Vite dev server, falling back to built assets'
       );
     }
+  }
+
+  if (BASE_URL) {
+    const url = `${BASE_URL}/${widgetId}.html`;
+    logger.debug({ url }, 'Fetching widget HTML from BASE_URL');
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch widget HTML from ${url}: ${response.statusText}`
+      );
+    }
+    return response.text();
   }
 
   if (!fs.existsSync(ASSETS_DIR)) {
@@ -310,12 +323,18 @@ function createMcpServer(sessionId: string): Server {
  * Main server setup
  */
 async function main() {
+  if (NODE_ENV === 'production' && !BASE_URL) {
+    logger.fatal('BASE_URL must be set in production');
+    process.exit(1);
+  }
+
   logger.info(
     {
       port: PORT,
       nodeEnv: NODE_ENV,
       logLevel: LOG_LEVEL,
       assetsDir: ASSETS_DIR,
+      baseUrl: BASE_URL,
     },
     'Starting ChatGPT App Template server'
   );

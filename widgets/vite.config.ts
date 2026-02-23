@@ -9,6 +9,7 @@ const isProd = process.env.NODE_ENV === 'production';
 const widgetPort = Number(process.env.WIDGET_PORT || 4444);
 
 export default defineConfig({
+  envDir: '..', // load .env from repo root so BASE_URL is available at build time
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
