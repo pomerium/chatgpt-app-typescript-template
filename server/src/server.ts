@@ -104,7 +104,7 @@ async function readWidgetHtml(widgetId: string): Promise<string> {
   }
 
   if (BASE_URL) {
-    const url = `${BASE_URL}/${widgetId}.html`;
+    const url = new URL(`${widgetId}.html`, BASE_URL).href;
     logger.debug({ url }, 'Fetching widget HTML from BASE_URL');
     const response = await fetch(url);
     if (!response.ok) {
