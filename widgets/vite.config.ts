@@ -1,14 +1,23 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import compression from 'vite-plugin-compression';
 import { widgetDiscoveryPlugin } from './vite-plugin-widgets';
 import path from 'path';
 
-const isProd = process.env.NODE_ENV === 'production';
-const widgetPort = Number(process.env.WIDGET_PORT || 4444);
+export default defineConfig(({ mode }) => {
+  // loadEnv with '' prefix loads all .env vars (not just VITE_-prefixed ones).
+  // Inject into process.env so vite-plugin-widgets can read BASE_URL at build time.
+  const env = loadEnv(mode, path.resolve(__dirname, '..'), '');
+  if (env.BASE_URL && !process.env.BASE_URL) {
+    process.env.BASE_URL = env.BASE_URL;
+  }
 
-export default defineConfig({
+  const isProd = process.env.NODE_ENV === 'production';
+  const widgetPort = Number(process.env.WIDGET_PORT || env.WIDGET_PORT || 4444);
+
+  return {
+  envDir: '..', // load .env from repo root for import.meta.env in client code
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -71,4 +80,5 @@ export default defineConfig({
     jsxImportSource: 'react',
     target: 'es2023',
   },
+  };
 });
