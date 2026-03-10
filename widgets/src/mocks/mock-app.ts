@@ -49,6 +49,9 @@ export function createMockApp<TStructured>(
     requestDisplayMode: async (params: { mode: HostContext['displayMode'] }) => ({
       mode: params.mode!,
     }),
+    openLink: async () => ({}),
+    sendMessage: async () => ({}),
+    updateModelContext: async () => ({}),
     ontoolresult: undefined as
       | ((result: ToolResultPayload<TStructured>) => void)
       | undefined,

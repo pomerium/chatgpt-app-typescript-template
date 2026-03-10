@@ -5,7 +5,7 @@ import { App } from '@modelcontextprotocol/ext-apps';
 import type { TextContent } from '@modelcontextprotocol/sdk/types.js';
 import { Button } from '@/components/ui/button';
 import type { EchoToolOutput } from 'chatgpt-app-server/types';
-import { Moon, Sun } from 'lucide-react';
+import { BrainCircuit, ExternalLink, Maximize2, Minimize2, MessageSquare, Moon, Play, Sun, X } from 'lucide-react';
 import type { AppLike, HostContext, ToolResultPayload } from '../types/mcp-app';
 
 function isEchoToolOutput(value: unknown): value is EchoToolOutput {
@@ -37,6 +37,7 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
   const [callResult, setCallResult] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [localTheme, setLocalTheme] = useState<'light' | 'dark' | null>(null);
+  const [contextUpdate, setContextUpdate] = useState<string | null>(null);
 
   const message = toolOutput?.echoedMessage || 'No message yet';
 
@@ -50,7 +51,7 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
 
     activeApp.onhostcontextchanged = (context: HostContext) => {
       if (!isMounted) return;
-      setHostContext(context);
+      setHostContext((prev) => ({ ...prev, ...context }));
     };
 
     const connect = async () => {
@@ -90,7 +91,7 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
     try {
       const result = await activeApp.callServerTool({
         name: 'echo',
-        arguments: { message: `Re-echoing: ${message}` },
+        arguments: { message: 'Hello from the echo widget!' },
       });
 
       if (isEchoToolOutput(result.structuredContent)) {
@@ -113,11 +114,83 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
   /**
    * Toggle fullscreen display mode
    */
-  const handleRequestFullscreen = async () => {
+  const handleToggleFullscreen = async () => {
     try {
-      await activeApp.requestDisplayMode({ mode: 'fullscreen' });
+      const target = displayMode === 'fullscreen' ? 'inline' : 'fullscreen';
+      const result = await activeApp.requestDisplayMode({ mode: target });
+      setHostContext((prev) => prev ? { ...prev, displayMode: result.mode } : prev);
     } catch (err) {
-      console.error('Failed to request fullscreen:', err);
+      console.error('Failed to toggle fullscreen:', err);
+    }
+  };
+
+  /**
+   * Open an external link via the host
+   */
+  const handleOpenLink = async () => {
+    try {
+      const result = await activeApp.openLink({
+        url: 'https://www.pomerium.com/docs/capabilities/mcp/develop-mcp-app',
+      });
+      if (result.isError) {
+        setCallResult('Host denied the link request');
+      }
+    } catch (err) {
+      console.error('Failed to open link:', err);
+    }
+  };
+
+  /**
+   * Send the echoed message to the host chat
+   */
+  const handleSendMessage = async () => {
+    try {
+      const result = await activeApp.sendMessage({
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: 'Sent this chat message from the echo widget',
+          },
+        ],
+      });
+      if (result.isError) {
+        setCallResult('Host rejected the message');
+      } else {
+        setCallResult('Message sent to chat');
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Unknown error';
+      setCallResult(`Send failed: ${errorMessage}`);
+    }
+  };
+
+  /**
+   * Update the model context with current widget state
+   */
+  const handleUpdateContext = async () => {
+    const structured = {
+      echoedMessage: message,
+      theme: activeTheme,
+      displayMode: displayMode ?? 'unknown',
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      await activeApp.updateModelContext({
+        content: [
+          {
+            type: 'text',
+            text: `Echo widget state: ${JSON.stringify(structured)}`,
+          },
+        ],
+        structuredContent: structured,
+      });
+      setContextUpdate(JSON.stringify(structured, null, 2));
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Unknown error';
+      setContextUpdate(`Context update failed: ${errorMessage}`);
     }
   };
 
@@ -139,11 +212,12 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
     >
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,var(--tw-gradient-stops))] dark:from-purple-950/20 dark:via-transparent dark:to-transparent from-purple-100/30 via-transparent to-transparent" />
 
-      <div className="absolute top-6 right-6 z-10">
+      <div className="absolute top-6 right-6 z-10 flex gap-2">
         <Button
           onClick={toggleTheme}
           variant="outline"
           size="icon"
+          title={activeTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
           className="rounded-full dark:bg-zinc-800/90 dark:border-zinc-700 dark:hover:bg-zinc-700 bg-white/90 backdrop-blur-sm border-zinc-200 hover:bg-zinc-100 transition-all duration-300 shadow-lg hover:shadow-xl"
         >
           {activeTheme === 'dark' ? (
@@ -155,6 +229,22 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
             {activeTheme === 'dark'
               ? 'Switch to light theme'
               : 'Switch to dark theme'}
+          </span>
+        </Button>
+        <Button
+          onClick={handleToggleFullscreen}
+          variant="outline"
+          size="icon"
+          title={displayMode === 'fullscreen' ? 'Calls requestDisplayMode() to exit full screen' : 'Calls requestDisplayMode() to enter full screen'}
+          className="rounded-full dark:bg-zinc-800/90 dark:border-zinc-700 dark:hover:bg-zinc-700 bg-white/90 backdrop-blur-sm border-zinc-200 hover:bg-zinc-100 transition-all duration-300 shadow-lg hover:shadow-xl"
+        >
+          {displayMode === 'fullscreen' ? (
+            <Minimize2 className="h-4 w-4 dark:text-zinc-300 text-zinc-700" />
+          ) : (
+            <Maximize2 className="h-4 w-4 dark:text-zinc-300 text-zinc-700" />
+          )}
+          <span className="sr-only">
+            {displayMode === 'fullscreen' ? 'Exit full screen' : 'Full screen'}
           </span>
         </Button>
       </div>
@@ -185,26 +275,49 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
               variant="default"
               onClick={handleCallEcho}
               disabled={isLoading}
+              title="Calls callServerTool() to invoke the echo tool on the MCP server."
               className="font-medium dark:bg-purple-600 dark:hover:bg-purple-700 dark:text-white bg-zinc-900 hover:bg-zinc-800 text-white shadow-md hover:shadow-lg transition-all duration-300"
             >
+              <Play className="h-4 w-4" />
               Call Echo Tool
             </Button>
             <Button
+              onClick={handleUpdateContext}
               variant="outline"
-              onClick={() => setCallResult(null)}
+              title="Calls updateModelContext() to push widget state to the model's context for future turns."
               className="font-medium dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 text-zinc-700 hover:bg-zinc-100 transition-all duration-300"
             >
-              Clear Result
+              <BrainCircuit className="h-4 w-4" />
+              Update Context
             </Button>
-            {displayMode !== 'fullscreen' && (
-              <Button
-                onClick={handleRequestFullscreen}
-                variant="outline"
-                className="font-medium dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 text-zinc-700 hover:bg-zinc-100 transition-all duration-300"
-              >
-                Enter Fullscreen
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              onClick={() => { setCallResult(null); setContextUpdate(null); }}
+              title="Clears the result and model context update sections."
+              className="font-medium dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 text-zinc-700 hover:bg-zinc-100 transition-all duration-300"
+            >
+              <X className="h-4 w-4" />
+              Clear
+            </Button>
+            <Button
+              onClick={handleSendMessage}
+              variant="outline"
+              disabled={!toolOutput}
+              title="Calls sendMessage() to send a message to the host chat."
+              className="font-medium dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 text-zinc-700 hover:bg-zinc-100 transition-all duration-300"
+            >
+              <MessageSquare className="h-4 w-4" />
+              Send to Chat
+            </Button>
+            <Button
+              onClick={handleOpenLink}
+              variant="outline"
+              title="Calls openLink() to open an external URL via the host."
+              className="font-medium dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 text-zinc-700 hover:bg-zinc-100 transition-all duration-300"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Open Docs
+            </Button>
           </div>
         </section>
 
@@ -212,7 +325,7 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
           <h2 className="text-sm font-semibold dark:text-zinc-300 text-zinc-900 uppercase tracking-wide">
             Result
           </h2>
-          <output className="text-sm dark:text-zinc-200 text-zinc-800 leading-relaxed">
+          <output className="block min-h-6 text-sm dark:text-zinc-200 text-zinc-800 leading-relaxed">
             {isLoading ? (
               <div className="flex items-center h-6">
                 <div className="flex gap-1">
@@ -225,6 +338,17 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
               callResult
             )}
           </output>
+        </section>
+
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold dark:text-zinc-300 text-zinc-900 uppercase tracking-wide">
+            Model Context Update
+          </h2>
+          {contextUpdate && (
+            <output className="block text-sm dark:text-zinc-200 text-zinc-800 leading-relaxed dark:bg-zinc-800/50 bg-zinc-100 rounded-md p-3 font-mono whitespace-pre-wrap">
+              {contextUpdate}
+            </output>
+          )}
         </section>
       </div>
     </main>

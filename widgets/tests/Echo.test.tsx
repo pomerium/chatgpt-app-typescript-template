@@ -42,7 +42,7 @@ describe('Echo', () => {
       await screen.findByRole('button', { name: /call echo tool/i })
     ).toBeTruthy();
     expect(
-      screen.getByRole('button', { name: /clear result/i })
+      screen.getByRole('button', { name: /^clear$/i })
     ).toBeTruthy();
   });
 });

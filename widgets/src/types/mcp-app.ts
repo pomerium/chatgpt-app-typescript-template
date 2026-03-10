@@ -27,6 +27,12 @@ export interface ToolResultPayload<TStructured = unknown> {
   structuredContent?: TStructured;
 }
 
+export interface ContentBlock {
+  type: string;
+  text?: string;
+  [key: string]: unknown;
+}
+
 export interface AppLike<TStructured = unknown> {
   connect: () => Promise<void>;
   getHostContext: () => HostContext | null;
@@ -38,6 +44,21 @@ export interface AppLike<TStructured = unknown> {
     mode: DisplayMode;
     [key: string]: unknown;
   }>;
+  openLink: (params: { url: string }) => Promise<{
+    isError?: boolean;
+    [key: string]: unknown;
+  }>;
+  sendMessage: (params: {
+    role: 'user';
+    content: ContentBlock[];
+  }) => Promise<{
+    isError?: boolean;
+    [key: string]: unknown;
+  }>;
+  updateModelContext: (params: {
+    content?: ContentBlock[];
+    structuredContent?: Record<string, unknown>;
+  }) => Promise<Record<string, unknown>>;
   ontoolresult?: (result: ToolResultPayload<TStructured>) => void;
   onhostcontextchanged?: (context: HostContext) => void;
 }
