@@ -208,7 +208,7 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
   return (
     <main
       style={containerStyle}
-      className={`min-h-screen p-6 rounded-2xl ${activeTheme === 'dark' ? 'dark bg-[#0A0A0A]' : 'transparent'}`}
+      className={`p-6 rounded-2xl ${activeTheme === 'dark' ? 'dark bg-[#0A0A0A]' : 'transparent'}`}
     >
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,var(--tw-gradient-stops))] dark:from-purple-950/20 dark:via-transparent dark:to-transparent from-purple-100/30 via-transparent to-transparent" />
 
