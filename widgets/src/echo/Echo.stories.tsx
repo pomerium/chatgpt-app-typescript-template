@@ -87,7 +87,7 @@ export const DarkTheme: Story = {
           theme: 'dark',
           displayMode: 'inline',
           safeAreaInsets: { top: 16, bottom: 16, left: 16, right: 16 },
-          viewport: { maxHeight: 600 },
+          containerDimensions: { maxHeight: 600 },
         },
       })}
     />
