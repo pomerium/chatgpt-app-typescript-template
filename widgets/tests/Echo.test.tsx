@@ -17,13 +17,13 @@ describe('Echo', () => {
       />
     );
 
-    expect(await screen.findByText(/Test Message/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Test Message/i)).toBeTruthy();
   });
 
   it('should show a fallback message when empty', async () => {
     render(<Echo app={createMockApp<EchoToolOutput>({ toolOutput: null })} />);
 
-    expect(await screen.findByText(/No message yet/i)).toBeInTheDocument();
+    expect(await screen.findByText(/No message yet/i)).toBeTruthy();
   });
 
   it('should render action buttons', async () => {
@@ -38,10 +38,11 @@ describe('Echo', () => {
       />
     );
 
-    expect(await screen.findByRole('button', { name: /call echo tool/i }))
-      .toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: /call echo tool/i })
+    ).toBeTruthy();
     expect(
       screen.getByRole('button', { name: /clear result/i })
-    ).toBeInTheDocument();
+    ).toBeTruthy();
   });
 });

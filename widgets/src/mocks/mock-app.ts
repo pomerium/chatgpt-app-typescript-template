@@ -24,17 +24,20 @@ export function createMockApp<TStructured>(
       containerDimensions: { maxHeight: 600 },
     };
 
-  const app: AppLike<TStructured> = {
+  const mock = {
     connect: async () => {
       if (toolOutput !== null) {
-        app.ontoolresult?.({ structuredContent: toolOutput, content: [] });
+        mock.ontoolresult?.({ structuredContent: toolOutput, content: [] });
       }
-      app.onhostcontextchanged?.(hostContext);
+      mock.onhostcontextchanged?.(hostContext);
     },
     getHostContext: () => hostContext,
     callServerTool:
       options.callServerTool ??
-      (async (params) => ({
+      (async (params: {
+        name: string;
+        arguments?: Record<string, unknown>;
+      }) => ({
         content: [
           {
             type: 'text',
@@ -43,20 +46,24 @@ export function createMockApp<TStructured>(
         ],
         structuredContent: toolOutput ?? undefined,
       })),
-    requestDisplayMode: async (params) => ({ mode: params.mode }),
-    ontoolresult: undefined,
-    onhostcontextchanged: undefined,
-  };
-
-  return {
-    ...app,
+    requestDisplayMode: async (params: { mode: HostContext['displayMode'] }) => ({
+      mode: params.mode!,
+    }),
+    ontoolresult: undefined as
+      | ((result: ToolResultPayload<TStructured>) => void)
+      | undefined,
+    onhostcontextchanged: undefined as
+      | ((context: HostContext) => void)
+      | undefined,
     emitToolResult: (next: TStructured) => {
       toolOutput = next;
-      app.ontoolresult?.({ structuredContent: next, content: [] });
+      mock.ontoolresult?.({ structuredContent: next, content: [] });
     },
     setHostContext: (next: HostContext) => {
       hostContext = next;
-      app.onhostcontextchanged?.(next);
+      mock.onhostcontextchanged?.(next);
     },
   };
+
+  return mock;
 }
