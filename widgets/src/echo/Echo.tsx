@@ -2,14 +2,20 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { App } from '@modelcontextprotocol/ext-apps';
+import type { TextContent } from '@modelcontextprotocol/sdk/types.js';
 import { Button } from '@/components/ui/button';
 import type { EchoToolOutput } from 'chatgpt-app-server/types';
 import { Moon, Sun } from 'lucide-react';
-import type {
-  AppLike,
-  HostContext,
-  ToolResultPayload,
-} from '../types/mcp-app';
+import type { AppLike, HostContext, ToolResultPayload } from '../types/mcp-app';
+
+function isEchoToolOutput(value: unknown): value is EchoToolOutput {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'echoedMessage' in value &&
+    'timestamp' in value
+  );
+}
 
 /**
  * Echo Widget - Vercel-inspired Design
@@ -18,13 +24,15 @@ import type {
  */
 export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
   const defaultApp = useMemo(
-    () => new App({ name: 'Echo', version: '1.0.0' }) as AppLike<EchoToolOutput>,
+    () => new App({ name: 'Echo', version: '1.0.0' }),
     []
   );
   const activeApp = app ?? defaultApp;
 
   const [toolOutput, setToolOutput] = useState<EchoToolOutput | null>(null);
-  const [hostContext, setHostContext] = useState<HostContext | null>(null);
+  const [hostContext, setHostContext] = useState<
+    HostContext | null | undefined
+  >(null);
 
   const [callResult, setCallResult] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -85,13 +93,14 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
         arguments: { message: `Re-echoing: ${message}` },
       });
 
-      if (result.structuredContent) {
+      if (isEchoToolOutput(result.structuredContent)) {
         setToolOutput(result.structuredContent);
       }
 
       const text =
-        result?.content?.find((item) => item.type === 'text')?.text ||
-        'Success!';
+        result?.content?.find(
+          (item): item is TextContent => item.type === 'text'
+        )?.text || 'Success!';
       setCallResult(text);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';

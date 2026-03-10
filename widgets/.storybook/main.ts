@@ -12,10 +12,19 @@ const config: StorybookConfig = {
     builder: '@storybook/builder-vite',
   },
   viteFinal: async (config) => {
-    // Add Tailwind CSS plugin
-    config.plugins = config.plugins || [];
-    config.plugins.push(tailwindcss());
-    return config;
+    const plugins = Array.isArray(config.plugins)
+      ? config.plugins
+      : config.plugins
+        ? [config.plugins]
+        : [];
+
+    return {
+      ...config,
+      plugins: [
+        ...plugins,
+        tailwindcss() as unknown as (typeof plugins)[number],
+      ],
+    };
   },
 };
 

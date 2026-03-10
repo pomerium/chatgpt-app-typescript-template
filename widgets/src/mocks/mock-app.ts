@@ -15,7 +15,7 @@ export function createMockApp<TStructured>(
   emitToolResult: (next: TStructured) => void;
   setHostContext: (next: HostContext) => void;
 } {
-  let toolOutput = options.toolOutput ?? null;
+  let toolOutput: TStructured | null = options.toolOutput ?? null;
   let hostContext: HostContext =
     options.hostContext ?? {
       theme: 'light',
@@ -43,7 +43,7 @@ export function createMockApp<TStructured>(
         ],
         structuredContent: toolOutput ?? undefined,
       })),
-    requestDisplayMode: async () => {},
+    requestDisplayMode: async (params) => ({ mode: params.mode }),
     ontoolresult: undefined,
     onhostcontextchanged: undefined,
   };
