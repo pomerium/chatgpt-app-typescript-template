@@ -31,7 +31,10 @@ export interface AppLike<TStructured = unknown> {
     name: string;
     arguments?: Record<string, unknown>;
   }) => Promise<ToolResultPayload<TStructured>>;
-  requestDisplayMode: (params: { mode: DisplayMode }) => Promise<void>;
+  requestDisplayMode: (params: { mode: DisplayMode }) => Promise<{
+    mode: DisplayMode;
+    [key: string]: unknown;
+  }>;
   ontoolresult?: (result: ToolResultPayload<TStructured>) => void;
   onhostcontextchanged?: (context: HostContext) => void;
 }
