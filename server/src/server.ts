@@ -10,9 +10,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
+import type { ClientCapabilities } from '@modelcontextprotocol/sdk/types.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
-import { z } from 'zod';
 import {
+  getUiCapability,
   registerAppResource,
   registerAppTool,
   RESOURCE_MIME_TYPE,
@@ -167,7 +168,10 @@ function inlineWidgetAssets(html: string): string {
 /**
  * Create an MCP server instance with echo tool
  */
-function createMcpServer(sessionId: string): McpServer {
+function createMcpServer(
+  sessionId: string,
+  clientCapabilities?: ClientCapabilities & { extensions?: Record<string, unknown> }
+): McpServer {
   const server = new McpServer({
     name: 'mcp-app-template',
     version: '1.0.0',
@@ -176,6 +180,9 @@ function createMcpServer(sessionId: string): McpServer {
   const sessionLogger = logger.child({ sessionId });
 
   const resourceUri = ECHO_WIDGET.uri;
+  const canRenderUiByCapability = Boolean(
+    getUiCapability(clientCapabilities)?.mimeTypes?.includes(RESOURCE_MIME_TYPE)
+  );
 
   registerAppResource(
     server,
@@ -240,14 +247,19 @@ function createMcpServer(sessionId: string): McpServer {
       title: 'Echo',
       description: "Echoes back the user's message in an interactive view",
       inputSchema: EchoToolInputSchema.shape,
-      _meta: {
-        ui: {
-          resourceUri,
-        },
-      },
+      _meta: canRenderUiByCapability
+        ? {
+            ui: {
+              resourceUri,
+            },
+          }
+        : {},
     },
     async (args) => {
-      sessionLogger.info({ toolName: 'echo', args }, 'Tool invoked');
+      sessionLogger.info(
+        { toolName: 'echo', args, canRenderUiByCapability },
+        'Tool invoked'
+      );
 
       try {
         const result = EchoToolInputSchema.safeParse(args);
@@ -261,7 +273,7 @@ function createMcpServer(sessionId: string): McpServer {
             content: [
               {
                 type: 'text',
-                text: `Error: ${result.error.errors.map((e) => e.message).join(', ')}`,
+                text: `Error: ${result.error.issues.map((e) => e.message).join(', ')}`,
               },
             ],
             isError: true,
@@ -276,6 +288,17 @@ function createMcpServer(sessionId: string): McpServer {
         } satisfies EchoToolOutput;
 
         sessionLogger.info({ output }, 'Tool execution successful');
+
+        if (!canRenderUiByCapability) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Echoing: "${message}"`,
+              },
+            ],
+          };
+        }
 
         return {
           content: [
@@ -382,7 +405,10 @@ async function main() {
         };
 
         const tempSessionId = 'initializing';
-        const server = createMcpServer(tempSessionId);
+        const clientCapabilities = req.body.params.capabilities as
+          | (ClientCapabilities & { extensions?: Record<string, unknown> })
+          | undefined;
+        const server = createMcpServer(tempSessionId, clientCapabilities);
         await server.connect(transport);
 
         await transport.handleRequest(req, res, req.body);
