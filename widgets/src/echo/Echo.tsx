@@ -198,17 +198,17 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
   const maxHeight = hostContext?.containerDimensions?.maxHeight;
 
   const containerStyle = {
-    paddingTop: `${safeAreaInsets?.top ?? 8}px`,
-    paddingBottom: `${safeAreaInsets?.bottom ?? 8}px`,
-    paddingLeft: `${safeAreaInsets?.left ?? 8}px`,
-    paddingRight: `${safeAreaInsets?.right ?? 8}px`,
+    paddingTop: `${Math.max(safeAreaInsets?.top ?? 16, 16)}px`,
+    paddingBottom: `${Math.max(safeAreaInsets?.bottom ?? 16, 16)}px`,
+    paddingLeft: `${Math.max(safeAreaInsets?.left ?? 16, 16)}px`,
+    paddingRight: `${Math.max(safeAreaInsets?.right ?? 16, 16)}px`,
     maxHeight: maxHeight ? `${maxHeight}px` : '100vh',
   };
 
   return (
     <main
       style={containerStyle}
-      className={`min-h-screen p-2 ${activeTheme === 'dark' ? 'dark bg-[#0A0A0A]' : 'transparent'}`}
+      className={`min-h-screen p-6 rounded-2xl ${activeTheme === 'dark' ? 'dark bg-[#0A0A0A]' : 'transparent'}`}
     >
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,var(--tw-gradient-stops))] dark:from-purple-950/20 dark:via-transparent dark:to-transparent from-purple-100/30 via-transparent to-transparent" />
 
@@ -344,11 +344,9 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
           <h2 className="text-sm font-semibold dark:text-zinc-300 text-zinc-900 uppercase tracking-wide">
             Model Context Update
           </h2>
-          {contextUpdate && (
-            <output className="block text-sm dark:text-zinc-200 text-zinc-800 leading-relaxed dark:bg-zinc-800/50 bg-zinc-100 rounded-md p-3 font-mono whitespace-pre-wrap">
-              {contextUpdate}
-            </output>
-          )}
+          <output className={`block text-sm leading-relaxed rounded-md p-3 font-mono whitespace-pre-wrap ${contextUpdate ? 'dark:text-zinc-200 text-zinc-800 dark:bg-zinc-800/50 bg-zinc-100' : 'invisible'}`}>
+            {contextUpdate || '{\n  "echoedMessage": "placeholder",\n  "theme": "dark",\n  "displayMode": "inline",\n  "updatedAt": "0000-00-00T00:00:00.000Z"\n}'}
+          </output>
         </section>
       </div>
     </main>
