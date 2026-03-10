@@ -201,8 +201,6 @@ function createMcpServer(
                 ui: {
                   csp: {
                     resourceDomains: [devWidgetOrigin, devWidgetOriginAlt],
-                    scriptDomains: [devWidgetOrigin, devWidgetOriginAlt],
-                    styleDomains: [devWidgetOrigin, devWidgetOriginAlt],
                     connectDomains: [
                       devWidgetOrigin,
                       devWidgetOriginAlt,
