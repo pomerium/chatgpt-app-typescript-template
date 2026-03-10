@@ -302,7 +302,6 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
             <Button
               onClick={handleSendMessage}
               variant="outline"
-              disabled={!toolOutput}
               title="Calls sendMessage() to send a message to the host chat."
               className="font-medium dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 text-zinc-700 hover:bg-zinc-100 transition-all duration-300"
             >
