@@ -841,13 +841,13 @@ curl http://localhost:8080/health
 
 ## Architecture Decisions
 
-### Why Base `Server` Class?
+### Why `McpServer` + MCP Apps Helpers?
 
-The template uses the **base `Server` class** from `@modelcontextprotocol/sdk/server/index.js`, not the higher-level `McpServer` class, because:
+The template uses `McpServer` from `@modelcontextprotocol/sdk/server/mcp.js` together with `@modelcontextprotocol/ext-apps/server` helpers because:
 
-- MCP Apps hosts require `_meta.ui.resourceUri` for UI binding
-- Higher-level abstractions might strip custom metadata
-- Proven pattern from OpenAI's official examples
+- `registerAppTool` and `registerAppResource` handle MCP Apps metadata wiring consistently
+- Tool UI binding is declared with `_meta.ui.resourceUri` in one place
+- The pattern is portable across MCP Apps hosts (ChatGPT, VS Code, Claude, Goose)
 
 ### Why Node.js 22 + ES2023?
 
