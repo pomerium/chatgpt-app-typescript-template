@@ -21,7 +21,7 @@ export function createMockApp<TStructured>(
       theme: 'light',
       displayMode: 'inline',
       safeAreaInsets: { top: 0, bottom: 0, left: 0, right: 0 },
-      viewport: { maxHeight: 600 },
+      containerDimensions: { maxHeight: 600 },
     };
 
   const app: AppLike<TStructured> = {

@@ -11,8 +11,11 @@ export interface HostContext {
     left: number;
     right: number;
   };
-  viewport?: {
+  containerDimensions?: {
+    height?: number;
     maxHeight?: number;
+    width?: number;
+    maxWidth?: number;
   };
 }
 

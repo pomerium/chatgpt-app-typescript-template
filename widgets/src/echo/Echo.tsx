@@ -122,7 +122,7 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
   };
 
   const safeAreaInsets = hostContext?.safeAreaInsets;
-  const maxHeight = hostContext?.viewport?.maxHeight;
+  const maxHeight = hostContext?.containerDimensions?.maxHeight;
 
   const containerStyle = {
     paddingTop: `${safeAreaInsets?.top ?? 8}px`,
