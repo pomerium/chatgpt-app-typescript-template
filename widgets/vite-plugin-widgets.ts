@@ -144,8 +144,6 @@ export function widgetDiscoveryPlugin(): Plugin {
         };
         const widgetPath = isDev ? toFs(widget.path) : toRelative(widget.path);
 
-        const isDev = config.command === 'serve';
-
         return {
           code: isDev
             ? `import "/@vite/client";
