@@ -483,10 +483,10 @@ docker-compose -f docker/docker-compose.yml up -d
 
 **Deployment Requirements:**
 
-- Deploy to a publicly accessible URL (most hosts require HTTPS)
-- Ensure `assets/` directory is deployed with the server
-- Configure reverse proxy if needed (nginx, Caddy, etc.)
-- Set up SSL/TLS certificates
+- **MCP Server:** Must be behind a [Pomerium](https://www.pomerium.com/) route for OAuth and access policies
+- **Widget assets:** Must be publicly accessible — same server, CDN (`BASE_URL`), or static host (Netlify/Vercel)
+- Ensure `assets/` directory is deployed with the server (or served separately via `BASE_URL`)
+- Set up SSL/TLS certificates (most MCP hosts require HTTPS)
 
 **Monitoring:**
 

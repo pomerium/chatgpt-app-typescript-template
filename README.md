@@ -880,10 +880,10 @@ curl http://localhost:8080/health
 
 **Deployment Requirements:**
 
-- Deploy to a publicly accessible URL (most hosts require HTTPS)
-- Ensure `assets/` directory is deployed with the server
-- Configure reverse proxy if needed (nginx, Caddy, etc.)
-- Set up SSL/TLS certificates
+- **MCP Server:** Must be behind a [Pomerium](https://www.pomerium.com/) route, which handles OAuth authentication and lets you set policies to control who can access the server and which tools they can use
+- **Widget assets:** Must be served from a publicly accessible URL — either from the same server, a CDN (`BASE_URL`), or a static host like Netlify/Vercel
+- Ensure `assets/` directory is deployed with the server (or served separately via `BASE_URL`)
+- Set up SSL/TLS certificates (most MCP hosts require HTTPS)
 
 **Monitoring:**
 
