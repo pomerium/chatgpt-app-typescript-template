@@ -265,7 +265,9 @@ function createMcpServer(
         const devWidgetOriginAlt = `http://127.0.0.1:${WIDGET_PORT}`;
         const baseUrlOrigin = new URL(BASE_URL || devWidgetOrigin).origin;
 
-        const resourceDomains: string[] = [baseUrlOrigin];
+        const resourceDomains: string[] = INLINE_DEV_MODE
+          ? []
+          : [baseUrlOrigin];
         const connectDomains: string[] = [];
 
         if (NODE_ENV === 'development' && !INLINE_DEV_MODE) {
