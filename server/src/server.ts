@@ -61,6 +61,33 @@ const ECHO_WIDGET: WidgetDescriptor = {
   uri: 'ui://echo',
 };
 
+/** Pre-inlined widget HTML cache — populated at startup when INLINE_WIDGET_ASSETS is true */
+const inlinedHtmlCache = new Map<string, string>();
+
+function buildInlinedHtml(widgetId: string): string | null {
+  const htmlPath = path.join(ASSETS_DIR, `${widgetId}.html`);
+  if (!fs.existsSync(htmlPath)) {
+    logger.warn({ htmlPath }, 'Cannot pre-inline: HTML file not found');
+    return null;
+  }
+  const html = fs.readFileSync(htmlPath, 'utf-8');
+  const inlined = inlineWidgetAssets(html);
+  logger.info(
+    { widgetId, originalLength: html.length, inlinedLength: inlined.length },
+    'Pre-inlined widget HTML'
+  );
+  return inlined;
+}
+
+function preInlineWidgets(widgetIds: string[]) {
+  for (const id of widgetIds) {
+    const html = buildInlinedHtml(id);
+    if (html) {
+      inlinedHtmlCache.set(id, html);
+    }
+  }
+}
+
 /**
  * Read widget HTML - from Vite dev server in development, from assets in production
  */
@@ -125,21 +152,26 @@ async function readWidgetHtml(widgetId: string): Promise<string> {
 }
 
 function inlineWidgetAssets(html: string): string {
+  logger.debug({ htmlLength: html.length }, 'Inlining widget assets');
   let nextHtml = html;
   const scripts = Array.from(
     html.matchAll(/<script[^>]*type="module"[^>]*src="([^"]+)"[^>]*><\/script>/g)
   );
+  logger.debug({ scriptMatches: scripts.length }, 'Found script tags to inline');
   for (const match of scripts) {
     const src = match[1];
     const filename = path.basename(src.split('?')[0]);
     const assetPath = path.join(ASSETS_DIR, filename);
+    logger.debug({ src, filename, assetPath, exists: fs.existsSync(assetPath) }, 'Processing script');
     if (!fs.existsSync(assetPath)) {
       logger.warn({ assetPath }, 'Inline asset missing, leaving script tag as-is');
       continue;
     }
-    const js = fs.readFileSync(assetPath, 'utf-8');
-    const inlineTag = `<script type="module">\n${js}\n</script>`;
-    nextHtml = nextHtml.replace(match[0], inlineTag);
+    const js = fs.readFileSync(assetPath);
+    const b64 = js.toString('base64');
+    const inlineTag = `<script type="module" src="data:text/javascript;base64,${b64}"></script>`;
+    nextHtml = nextHtml.replace(match[0], () => inlineTag);
+    logger.debug({ newLength: nextHtml.length }, 'JS inlined');
   }
 
   const styles = Array.from(
@@ -154,13 +186,16 @@ function inlineWidgetAssets(html: string): string {
       continue;
     }
     const css = fs.readFileSync(assetPath, 'utf-8');
-    const inlineTag = `<style>\n${css}\n</style>`;
-    nextHtml = nextHtml.replace(match[0], inlineTag);
+    const inlineTag = `<style>${css}</style>`;
+    nextHtml = nextHtml.replace(match[0], () => inlineTag);
+    logger.debug({ newLength: nextHtml.length }, 'CSS inlined');
   }
 
   nextHtml = nextHtml
     .replace(/<link[^>]*rel="modulepreload"[^>]*>/g, '')
     .replace(/<link[^>]*rel="preload"[^>]*as="style"[^>]*>/g, '');
+
+  logger.debug({ finalLength: nextHtml.length, hasLocalhost: nextHtml.includes('localhost') }, 'Inlining complete');
 
   return nextHtml;
 }
@@ -190,6 +225,7 @@ function createMcpServer(
     resourceUri,
     { mimeType: RESOURCE_MIME_TYPE },
     async () => {
+      sessionLogger.debug({ resourceUri }, 'Resource callback called');
       const widgetId = resourceUri.replace('ui://', '');
       try {
         const html = await readWidgetHtml(widgetId);
@@ -215,7 +251,7 @@ function createMcpServer(
         sessionLogger.info({ resourceUri, widgetId }, 'Widget resource loaded');
 
         const finalHtml = INLINE_WIDGET_ASSETS
-          ? inlineWidgetAssets(html)
+          ? (inlinedHtmlCache.get(widgetId) ?? inlineWidgetAssets(html))
           : html;
 
         return {
@@ -333,9 +369,33 @@ async function main() {
       logLevel: LOG_LEVEL,
       assetsDir: ASSETS_DIR,
       baseUrl: BASE_URL,
+      inlineWidgetAssets: INLINE_WIDGET_ASSETS,
     },
     'Starting MCP App Template server'
   );
+
+  const widgetIds = [ECHO_WIDGET.id];
+
+  if (INLINE_WIDGET_ASSETS) {
+    preInlineWidgets(widgetIds);
+
+    // Watch for rebuilds from widget watch mode
+    if (fs.existsSync(ASSETS_DIR)) {
+      fs.watch(ASSETS_DIR, (eventType, filename) => {
+        if (filename?.endsWith('.html')) {
+          const widgetId = filename.replace('.html', '');
+          if (widgetIds.includes(widgetId)) {
+            logger.info({ widgetId, eventType }, 'Asset changed, re-inlining');
+            const html = buildInlinedHtml(widgetId);
+            if (html) {
+              inlinedHtmlCache.set(widgetId, html);
+            }
+          }
+        }
+      });
+      logger.info('Watching assets directory for rebuild changes');
+    }
+  }
 
   const app = express();
 
