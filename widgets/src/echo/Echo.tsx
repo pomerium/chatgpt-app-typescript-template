@@ -5,7 +5,17 @@ import { App } from '@modelcontextprotocol/ext-apps';
 import type { TextContent } from '@modelcontextprotocol/sdk/types.js';
 import { Button } from '@/components/ui/button';
 import type { EchoToolOutput } from 'chatgpt-app-server/types';
-import { BrainCircuit, ExternalLink, Maximize2, Minimize2, MessageSquare, Moon, Play, Sun, X } from 'lucide-react';
+import {
+  BrainCircuit,
+  ExternalLink,
+  Maximize2,
+  Minimize2,
+  MessageSquare,
+  Moon,
+  Play,
+  Sun,
+  X,
+} from 'lucide-react';
 import type { AppLike, HostContext, ToolResultPayload } from '../types/mcp-app';
 
 function isEchoToolOutput(value: unknown): value is EchoToolOutput {
@@ -118,7 +128,9 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
     try {
       const target = displayMode === 'fullscreen' ? 'inline' : 'fullscreen';
       const result = await activeApp.requestDisplayMode({ mode: target });
-      setHostContext((prev) => prev ? { ...prev, displayMode: result.mode } : prev);
+      setHostContext((prev) =>
+        prev ? { ...prev, displayMode: result.mode } : prev
+      );
     } catch (err) {
       console.error('Failed to toggle fullscreen:', err);
     }
@@ -160,8 +172,7 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
         setCallResult('Message sent to chat');
       }
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Unknown error';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setCallResult(`Send failed: ${errorMessage}`);
     }
   };
@@ -188,8 +199,7 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
       });
       setContextUpdate(JSON.stringify(structured, null, 2));
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Unknown error';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setContextUpdate(`Context update failed: ${errorMessage}`);
     }
   };
@@ -217,7 +227,11 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
           onClick={toggleTheme}
           variant="outline"
           size="icon"
-          title={activeTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          title={
+            activeTheme === 'dark'
+              ? 'Switch to light theme'
+              : 'Switch to dark theme'
+          }
           className="rounded-full dark:bg-zinc-800/90 dark:border-zinc-700 dark:hover:bg-zinc-700 bg-white/90 backdrop-blur-sm border-zinc-200 hover:bg-zinc-100 transition-all duration-300 shadow-lg hover:shadow-xl"
         >
           {activeTheme === 'dark' ? (
@@ -235,7 +249,11 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
           onClick={handleToggleFullscreen}
           variant="outline"
           size="icon"
-          title={displayMode === 'fullscreen' ? 'Calls requestDisplayMode() to exit full screen' : 'Calls requestDisplayMode() to enter full screen'}
+          title={
+            displayMode === 'fullscreen'
+              ? 'Calls requestDisplayMode() to exit full screen'
+              : 'Calls requestDisplayMode() to enter full screen'
+          }
           className="rounded-full dark:bg-zinc-800/90 dark:border-zinc-700 dark:hover:bg-zinc-700 bg-white/90 backdrop-blur-sm border-zinc-200 hover:bg-zinc-100 transition-all duration-300 shadow-lg hover:shadow-xl"
         >
           {displayMode === 'fullscreen' ? (
@@ -292,7 +310,10 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
             </Button>
             <Button
               variant="outline"
-              onClick={() => { setCallResult(null); setContextUpdate(null); }}
+              onClick={() => {
+                setCallResult(null);
+                setContextUpdate(null);
+              }}
               title="Clears the result and model context update sections."
               className="font-medium dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 text-zinc-700 hover:bg-zinc-100 transition-all duration-300"
             >
@@ -343,8 +364,11 @@ export default function Echo({ app }: { app?: AppLike<EchoToolOutput> }) {
           <h2 className="text-sm font-semibold dark:text-zinc-300 text-zinc-900 uppercase tracking-wide">
             Model Context Update
           </h2>
-          <output className={`block text-sm leading-relaxed rounded-md p-3 font-mono whitespace-pre-wrap ${contextUpdate ? 'dark:text-zinc-200 text-zinc-800 dark:bg-zinc-800/50 bg-zinc-100' : 'invisible'}`}>
-            {contextUpdate || '{\n  "echoedMessage": "placeholder",\n  "theme": "dark",\n  "displayMode": "inline",\n  "updatedAt": "0000-00-00T00:00:00.000Z"\n}'}
+          <output
+            className={`block text-sm leading-relaxed rounded-md p-3 font-mono whitespace-pre-wrap ${contextUpdate ? 'dark:text-zinc-200 text-zinc-800 dark:bg-zinc-800/50 bg-zinc-100' : 'invisible'}`}
+          >
+            {contextUpdate ||
+              '{\n  "echoedMessage": "placeholder",\n  "theme": "dark",\n  "displayMode": "inline",\n  "updatedAt": "0000-00-00T00:00:00.000Z"\n}'}
           </output>
         </section>
       </div>

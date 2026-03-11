@@ -31,6 +31,7 @@ This starts both the MCP server (`http://localhost:8080`) and widget dev server 
 
 ```bash
 npm run dev           # Start everything (server + widgets in watch mode)
+npm run dev:claude    # Start for Claude.ai local dev (inlined assets + watch rebuild)
 npm run dev:server    # Start only MCP server (watch mode)
 npm run dev:widgets   # Start only widget dev server
 npm run inspect       # Test with MCP Inspector
@@ -257,6 +258,8 @@ The server inspects client capabilities during session initialization via `getUi
 ### Inline Widget Assets
 
 Set `INLINE_WIDGET_ASSETS=true` for hosts (e.g. Claude.ai) that require self-contained HTML. The server reads built JS/CSS from `assets/` and inlines them as `<script>`/`<style>` blocks, removing external references and preload hints. See `inlineWidgetAssets()` in `server/src/server.ts`.
+
+For local development with Claude.ai, use `npm run dev:claude` which sets `INLINE_WIDGET_ASSETS=true` and runs the widget build in watch mode so file changes are automatically rebuilt.
 
 ### Mock App for Testing & Storybook
 
@@ -496,7 +499,7 @@ docker-compose -f docker/docker-compose.yml up -d
 - Widget components accept an `app` prop typed as `AppLike<T>` so the real `App` or `createMockApp()` can be injected
 - Use `containerDimensions.maxHeight` (not viewport height) for responsive widget sizing
 - When adding new App API calls (`openLink`, `sendMessage`, `updateModelContext`), add the method signature to `AppLike` in `widgets/src/types/mcp-app.ts` and the mock in `widgets/src/mocks/mock-app.ts`
-- Set `INLINE_WIDGET_ASSETS=true` when testing with hosts that sandbox iframes (e.g. Claude.ai)
+- Use `npm run dev:claude` for local development with Claude.ai (sets `INLINE_WIDGET_ASSETS=true` with watch rebuild)
 - Widget build is separate from server build - always run `npm run build:widgets` when modifying widgets
 - The `text/html;profile=mcp-app` MIME type is non-negotiable for MCP Apps UI loading
 - Session cleanup runs automatically but sessions are isolated - each HttpStreamable connection gets its own MCP server instance

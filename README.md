@@ -185,6 +185,9 @@ Now that your app is working, you can:
 # Start everything (server + widgets in watch mode)
 npm run dev
 
+# Start for Claude.ai local dev (inlined assets + watch rebuild)
+npm run dev:claude
+
 # Start only MCP server (watch mode)
 npm run dev:server
 
@@ -575,7 +578,17 @@ This happens automatically via `getUiCapability()` from `@modelcontextprotocol/e
 
 ### Inline Widget Assets
 
-Some hosts (e.g. Claude.ai) require fully self-contained HTML — external `<script>` and `<link>` tags won't load inside their sandboxed iframes. Set:
+Some hosts (e.g. Claude.ai) require fully self-contained HTML — external `<script>` and `<link>` tags won't load inside their sandboxed iframes.
+
+**For local development with Claude.ai**, use the dedicated dev script:
+
+```bash
+npm run dev:claude
+```
+
+This sets `INLINE_WIDGET_ASSETS=true` automatically and runs the widget build in watch mode — so file changes are rebuilt into `assets/` and the server serves updated inlined HTML on the next tool call. No manual rebuild step needed.
+
+**For production**, set the environment variable:
 
 ```bash
 INLINE_WIDGET_ASSETS=true
