@@ -593,6 +593,41 @@ Both modes inline JS/CSS into the HTML as `<script>`/`<style>` blocks, producing
 
 > Neither mode is needed in production — once deployed to a public URL, hosts fetch widget assets (JS, CSS, fonts) directly via normal URLs.
 
+### Loading External Resources (Images, APIs, etc.)
+
+MCP Apps hosts render widgets inside sandboxed iframes with a strict Content Security Policy (CSP). By default, **remote images and other external resources will be blocked** — even if the HTTP request succeeds (returns 200), the browser won't render the response inside the iframe.
+
+To allow external domains, declare them in the resource's `_meta.ui.csp.resourceDomains`:
+
+```typescript
+return {
+  contents: [
+    {
+      uri: resourceUri,
+      mimeType: RESOURCE_MIME_TYPE,
+      text: html,
+      _meta: {
+        ui: {
+          csp: {
+            resourceDomains: ['https://cdn.example.com', 'https://api.example.com'],
+            connectDomains: ['https://api.example.com'], // for fetch/XHR
+          },
+        },
+      },
+    },
+  ],
+};
+```
+
+The host merges these domains into the iframe's CSP, allowing the widget to load images, fonts, and other resources from the specified origins.
+
+**Key points:**
+
+- **Remote images require `resourceDomains`** — without it, `<img src="https://...">` will silently fail in most hosts
+- **Data URIs always work** — images imported via Vite (`import img from './photo.png'`) are inlined as data URIs when `assetsInlineLimit` is set (see [Inline Widget Assets](#inline-widget-assets))
+- **Each domain must be explicitly listed** — wildcards are not supported; include all domains your widget needs (e.g. both `https://picsum.photos` and `https://fastly.picsum.photos` if the first redirects to the second)
+- **`connectDomains`** — use this for `fetch()`/`XMLHttpRequest` calls to external APIs
+
 ### Mock App for Testing & Storybook
 
 The `createMockApp()` helper (`widgets/src/mocks/mock-app.ts`) provides a drop-in replacement for the real `App` instance, making it easy to test widgets and develop them in Storybook without a live MCP connection:

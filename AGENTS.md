@@ -172,7 +172,8 @@ function MyWidget() {
 
   useEffect(() => {
     const app = new App({ name: 'MyWidget', version: '1.0.0' });
-    app.ontoolresult = (result) => setToolOutput(result.structuredContent ?? null);
+    app.ontoolresult = (result) =>
+      setToolOutput(result.structuredContent ?? null);
     app.connect();
   }, []);
 
@@ -204,7 +205,11 @@ app.ontoolresult = (result) => {
   console.log(result.structuredContent);
 };
 app.onhostcontextchanged = (context) => {
-  console.log(context?.theme, context?.displayMode, context?.containerDimensions);
+  console.log(
+    context?.theme,
+    context?.displayMode,
+    context?.containerDimensions
+  );
 };
 await app.connect();
 
@@ -261,7 +266,16 @@ The server inspects client capabilities during session initialization via `getUi
 Both modes inline JS/CSS directly into widget HTML as `<script>`/`<style>` blocks for hosts whose sandboxed iframes cannot reach `localhost`. Neither mode is needed in production — once deployed to a public URL, hosts fetch widget assets directly via normal URLs.
 
 - **`npm run dev:claude`** (`CLAUDE_DEV_MODE=true`) — For Claude.ai local development. Claude.ai's CSP restricts `font-src` to `'self'` and `https://assets.claude.ai`, so custom fonts fall back silently to the system font stack (`system-ui`, `monospace`).
-- **`npm run dev:inline`** (`INLINE_DEV_MODE=true`) — For remote sharing via tunnel (e.g. `ssh -R 0 pom.run`). Inlines woff2 fonts as base64 data URIs in `@font-face` rules so custom fonts render for remote viewers. Works with hosts like ChatGPT that don't restrict `font-src`.
+- **`npm run dev:inline`** (`INLINE_DEV_MODE=true`) — For remote sharing via tunnel (e.g. `ssh -R 0 pom.run`). Inlines woff2 fonts as base64 data URIs in `@font-face` rules so custom fonts render for remote viewers. Works with hosts like ChatGPT th at don't restrict `font-src`.
+
+### External Resources & CSP
+
+MCP Apps hosts render widgets in sandboxed iframes with strict CSP. Remote images and other external resources are blocked by default. To allow external domains, declare them in the resource `_meta.ui.csp`:
+
+- `resourceDomains` — allows loading images, fonts, scripts from listed origins
+- `connectDomains` — allows `fetch()`/XHR to listed origins
+- Each domain must be explicitly listed (no wildcards); include redirect targets too
+- Data URIs always work — Vite-imported images are inlined via `assetsInlineLimit` in inline asset modes
 
 ### Mock App for Testing & Storybook
 
