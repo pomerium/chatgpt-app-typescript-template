@@ -31,7 +31,8 @@ This starts both the MCP server (`http://localhost:8080`) and widget dev server 
 
 ```bash
 npm run dev           # Start everything (server + widgets in watch mode)
-npm run dev:claude    # Start for Claude.ai local dev (inlined assets + watch rebuild)
+npm run dev:claude    # Claude.ai local dev (inlined assets, no custom fonts due to CSP restrictions)
+npm run dev:inline    # Inlined assets + fonts — use when sharing your MCP app remotely for review
 npm run dev:server    # Start only MCP server (watch mode)
 npm run dev:widgets   # Start only widget dev server
 npm run inspect       # Test with MCP Inspector
@@ -255,13 +256,12 @@ Hosts provide `containerDimensions` (`maxHeight`, `maxWidth`, `height`, `width`)
 
 The server inspects client capabilities during session initialization via `getUiCapability()` from `@modelcontextprotocol/ext-apps/server`. UI-capable hosts get `_meta.ui.resourceUri` on tools and `structuredContent` in responses. Text-only hosts get plain text responses with no UI metadata. This is handled automatically in `createMcpServer()`.
 
-### Claude.ai Local Development (`CLAUDE_DEV_MODE`)
+### Inline Asset Modes (Local Development Only)
 
-Claude.ai's sandboxed iframes cannot reach `localhost`, so `CLAUDE_DEV_MODE=true` inlines JS/CSS directly into widget HTML as `<script>`/`<style>` blocks. Use `npm run dev:claude` which sets this automatically and runs the widget build in watch mode.
+Both modes inline JS/CSS directly into widget HTML as `<script>`/`<style>` blocks for hosts whose sandboxed iframes cannot reach `localhost`. Neither mode is needed in production — once deployed to a public URL, hosts fetch widget assets directly via normal URLs.
 
-**Font limitation:** Claude.ai's Content Security Policy restricts `font-src` to `'self'` and `https://assets.claude.ai`, which blocks custom fonts loaded via data URIs, CDNs, or any external source. Custom `@font-face` declarations will fail silently and the system font fallback stack (`system-ui`, `monospace`) will be used instead.
-
-This mode is not needed in production — once deployed to a public URL, hosts fetch widget assets (JS, CSS, fonts) directly via normal URLs.
+- **`npm run dev:claude`** (`CLAUDE_DEV_MODE=true`) — For Claude.ai local development. Claude.ai's CSP restricts `font-src` to `'self'` and `https://assets.claude.ai`, so custom fonts fall back silently to the system font stack (`system-ui`, `monospace`).
+- **`npm run dev:inline`** (`INLINE_DEV_MODE=true`) — For remote sharing via tunnel (e.g. `ssh -R 0 pom.run`). Inlines woff2 fonts as base64 data URIs in `@font-face` rules so custom fonts render for remote viewers. Works with hosts like ChatGPT that don't restrict `font-src`.
 
 ### Mock App for Testing & Storybook
 
@@ -390,7 +390,8 @@ LOG_LEVEL=info                 # Pino log level: fatal, error, warn, info, debug
 SESSION_MAX_AGE=3600000        # Session cleanup threshold (1 hour in ms)
 CORS_ORIGIN=*                  # CORS origin (set to domain in production)
 BASE_URL=                      # Optional CDN URL for widget assets
-CLAUDE_DEV_MODE=true      # Local dev only: inline JS/CSS for Claude.ai (set by npm run dev:claude)
+CLAUDE_DEV_MODE=true      # Local dev only: inline JS/CSS for Claude.ai (npm run dev:claude)
+INLINE_DEV_MODE=true      # Local dev only: inline JS/CSS + fonts (npm run dev:inline)
 ```
 
 Requirements:
@@ -501,7 +502,7 @@ docker-compose -f docker/docker-compose.yml up -d
 - Widget components accept an `app` prop typed as `AppLike<T>` so the real `App` or `createMockApp()` can be injected
 - Use `containerDimensions.maxHeight` (not viewport height) for responsive widget sizing
 - When adding new App API calls (`openLink`, `sendMessage`, `updateModelContext`), add the method signature to `AppLike` in `widgets/src/types/mcp-app.ts` and the mock in `widgets/src/mocks/mock-app.ts`
-- Use `npm run dev:claude` for local development with Claude.ai (sets `CLAUDE_DEV_MODE=true` with watch rebuild)
+- Use `npm run dev:claude` for Claude.ai local dev, `npm run dev:inline` for remote sharing via tunnel
 - Widget build is separate from server build - always run `npm run build:widgets` when modifying widgets
 - The `text/html;profile=mcp-app` MIME type is non-negotiable for MCP Apps UI loading
 - Session cleanup runs automatically but sessions are isolated - each HttpStreamable connection gets its own MCP server instance

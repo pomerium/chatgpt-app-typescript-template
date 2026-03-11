@@ -578,19 +578,20 @@ This happens automatically via `getUiCapability()` from `@modelcontextprotocol/e
 
 ### Inline Widget Assets
 
-Some hosts (e.g. Claude.ai) require fully self-contained HTML — external `<script>` and `<link>` tags won't load inside their sandboxed iframes.
+Some hosts (e.g. Claude.ai) require fully self-contained HTML — external `<script>` and `<link>` tags won't load inside their sandboxed iframes. Two inline dev modes are available:
 
-**For local development with Claude.ai**, use the dedicated dev script:
+| Command | Env Var | Fonts | Use Case |
+|---------|---------|-------|----------|
+| `npm run dev:claude` | `CLAUDE_DEV_MODE=true` | System fallback | Claude.ai local dev |
+| `npm run dev:inline` | `INLINE_DEV_MODE=true` | Inlined as data URIs | Remote sharing via tunnel |
 
-```bash
-npm run dev:claude
-```
+Both modes inline JS/CSS into the HTML as `<script>`/`<style>` blocks, producing self-contained HTML. The widget build runs in watch mode so file changes are automatically rebuilt.
 
-This sets `CLAUDE_DEV_MODE=true` automatically and runs the widget build in watch mode — so file changes are rebuilt into `assets/` and the server serves updated inlined HTML on the next tool call. No manual rebuild step needed.
+**`dev:claude`** — Claude.ai's CSP restricts `font-src` to `'self'` and `https://assets.claude.ai`, so custom fonts can't load via data URIs or CDNs. The system font fallback stack (`system-ui`, `monospace`) is used instead.
 
-When enabled, the server reads the built JS and CSS files from `assets/` and inlines them directly into the HTML as `<script>` and `<style>` blocks, removing any `<link rel="modulepreload">` or `<link rel="preload">` hints. This produces a single self-contained HTML document that works in Claude.ai's sandboxed iframe.
+**`dev:inline`** — Inlines woff2 fonts as base64 data URIs in `@font-face` rules. Use this when sharing your work remotely via a tunnel (e.g. `ssh -R 0 pom.run`) so remote viewers see custom fonts. Works with hosts like ChatGPT that don't restrict `font-src`.
 
-> **Note:** Custom fonts won't load in Claude.ai due to its Content Security Policy (`font-src 'self' https://assets.claude.ai`). The system font fallback stack (`system-ui`, `monospace`) is used instead. This is not needed in production — once deployed to a public URL, hosts fetch assets directly via normal URLs.
+> Neither mode is needed in production — once deployed to a public URL, hosts fetch widget assets (JS, CSS, fonts) directly via normal URLs.
 
 ### Mock App for Testing & Storybook
 
@@ -686,8 +687,11 @@ CORS_ORIGIN=*
 # Asset Base URL (for CDN)
 # BASE_URL=https://cdn.example.com/assets
 
-# Local dev only: inline JS/CSS for Claude.ai (set by npm run dev:claude)
+# Local dev only: inline JS/CSS for Claude.ai (npm run dev:claude)
 # CLAUDE_DEV_MODE=true
+
+# Local dev only: inline JS/CSS + fonts as data URIs (npm run dev:inline)
+# INLINE_DEV_MODE=true
 ```
 
 ### Critical Configuration Notes

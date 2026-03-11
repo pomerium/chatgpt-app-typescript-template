@@ -39,6 +39,8 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 const WIDGET_PORT = Number(process.env.WIDGET_PORT || '4444');
 const { BASE_URL = '' } = process.env;
 const CLAUDE_DEV_MODE = process.env.CLAUDE_DEV_MODE === 'true';
+const INLINE_DEV_MODE = process.env.INLINE_DEV_MODE === 'true';
+const INLINE_ASSETS = CLAUDE_DEV_MODE || INLINE_DEV_MODE;
 
 const logger = pino({
   level: LOG_LEVEL,
@@ -61,7 +63,7 @@ const ECHO_WIDGET: WidgetDescriptor = {
   uri: 'ui://echo',
 };
 
-/** Pre-inlined widget HTML cache — populated at startup when CLAUDE_DEV_MODE is true */
+/** Pre-inlined widget HTML cache — populated at startup when INLINE_ASSETS is true */
 const inlinedHtmlCache = new Map<string, string>();
 
 function buildInlinedHtml(widgetId: string): string | null {
@@ -92,7 +94,7 @@ function preInlineWidgets(widgetIds: string[]) {
  * Read widget HTML - from Vite dev server in development, from assets in production
  */
 async function readWidgetHtml(widgetId: string): Promise<string> {
-  if (NODE_ENV === 'development' && !CLAUDE_DEV_MODE) {
+  if (NODE_ENV === 'development' && !INLINE_ASSETS) {
     try {
       const url = `http://localhost:${WIDGET_PORT}/${widgetId}.html`;
       logger.debug({ url }, 'Fetching widget HTML from Vite dev server');
@@ -185,7 +187,30 @@ function inlineWidgetAssets(html: string): string {
       logger.warn({ assetPath }, 'Inline asset missing, leaving style tag as-is');
       continue;
     }
-    const css = fs.readFileSync(assetPath, 'utf-8');
+    let css = fs.readFileSync(assetPath, 'utf-8');
+
+    if (INLINE_DEV_MODE) {
+      // Inline woff2 fonts as base64 data URIs and drop woff fallbacks
+      css = css.replace(
+        /,\s*url\([^)]*\.woff\)\s*format\("woff"\)/g,
+        ''
+      );
+      css = css.replace(
+        /url\(([^)]*\.woff2)\)/g,
+        (_match, fontUrl: string) => {
+          const fontFilename = path.basename(fontUrl.split('?')[0]);
+          const fontPath = path.join(ASSETS_DIR, fontFilename);
+          if (!fs.existsSync(fontPath)) {
+            logger.warn({ fontPath }, 'Font file missing, leaving url as-is');
+            return _match;
+          }
+          const fontB64 = fs.readFileSync(fontPath).toString('base64');
+          logger.debug({ fontFilename }, 'Font inlined as data URI');
+          return `url(data:font/woff2;base64,${fontB64})`;
+        }
+      );
+    }
+
     const inlineTag = `<style>${css}</style>`;
     nextHtml = nextHtml.replace(match[0], () => inlineTag);
     logger.debug({ newLength: nextHtml.length }, 'CSS inlined');
@@ -232,7 +257,7 @@ function createMcpServer(
         const devWidgetOrigin = `http://localhost:${WIDGET_PORT}`;
         const devWidgetOriginAlt = `http://127.0.0.1:${WIDGET_PORT}`;
         const devCspMeta =
-          NODE_ENV === 'development' && !CLAUDE_DEV_MODE
+          NODE_ENV === 'development' && !INLINE_ASSETS
             ? {
                 ui: {
                   csp: {
@@ -250,7 +275,7 @@ function createMcpServer(
 
         sessionLogger.info({ resourceUri, widgetId }, 'Widget resource loaded');
 
-        const finalHtml = CLAUDE_DEV_MODE
+        const finalHtml = INLINE_ASSETS
           ? (inlinedHtmlCache.get(widgetId) ?? inlineWidgetAssets(html))
           : html;
 
@@ -369,14 +394,15 @@ async function main() {
       logLevel: LOG_LEVEL,
       assetsDir: ASSETS_DIR,
       baseUrl: BASE_URL,
-      inlineWidgetAssets: CLAUDE_DEV_MODE,
+      claudeDevMode: CLAUDE_DEV_MODE,
+      inlineDevMode: INLINE_DEV_MODE,
     },
     'Starting MCP App Template server'
   );
 
   const widgetIds = [ECHO_WIDGET.id];
 
-  if (CLAUDE_DEV_MODE) {
+  if (INLINE_ASSETS) {
     preInlineWidgets(widgetIds);
 
     // Watch for rebuilds from widget watch mode
