@@ -7,6 +7,12 @@ A well-architected starter template demonstrating best practices for building MC
 - **MCP Server** - Node.js server with `McpServer` and MCP Apps helpers
 - **Echo Tool** - Example tool with [Zod](https://zod.dev/) validation and UI binding
 - **React Widgets** - Interactive Echo component with MCP Apps `App` API demo
+- **Display Modes** - Inline, picture-in-picture, and fullscreen with runtime toggling via `requestDisplayMode()`
+- **App API Demo** - `callServerTool`, `openLink`, `sendMessage`, `updateModelContext` showcased in the Echo widget
+- **UI Capability Negotiation** - Server detects host capabilities and falls back to text-only for non-UI clients
+- **Inline Widget Assets** - Self-contained HTML mode for hosts that sandbox iframes (e.g. Claude.ai)
+- **Container Dimensions** - Responsive widget sizing using host-provided `containerDimensions`
+- **Mock App** - Drop-in `createMockApp()` helper for testing and Storybook without a live MCP connection
 - **[Pino](https://getpino.io/) Logging** - Structured logging with pretty printing in development
 - **TypeScript** - Strict mode with ES2023 target
 - **[Tailwind CSS v4](https://tailwindcss.com/)** - Modern styling with dark mode support
@@ -28,8 +34,8 @@ graph TD
     B -.-> B3[text/html;profile=mcp-app<br/>MIME type]
 
     C -.-> C1[Receives App.ontoolresult]
-    C -.-> C2[Calls App.callServerTool]
-    C -.-> C3[Theme, displayMode, safeArea]
+    C -.-> C2[callServerTool, openLink,<br/>sendMessage, updateModelContext]
+    C -.-> C3[Theme, displayMode, safeArea,<br/>containerDimensions]
 
     style A fill:#e1f5ff
     style B fill:#fff4e6
@@ -499,17 +505,102 @@ app.onhostcontextchanged = (context) => {
 await app.connect();
 ```
 
+#### Display Modes
+
+Widgets can run in three display modes provided by the host:
+
+- **`inline`** — Rendered within the chat message flow (default)
+- **`pip`** — Picture-in-picture floating window
+- **`fullscreen`** — Full-screen overlay
+
+The current mode is available via `hostContext.displayMode`. Widgets can request a mode change at runtime:
+
+```typescript
+// Toggle between inline and fullscreen
+const result = await app.requestDisplayMode({ mode: 'fullscreen' });
+console.log(result.mode); // the mode the host actually switched to
+```
+
+The host decides whether to honor the request — always use the returned `result.mode` as the source of truth.
+
+#### Container Dimensions
+
+Hosts provide `containerDimensions` in the host context so widgets can size themselves responsively:
+
+```typescript
+app.onhostcontextchanged = (context) => {
+  const { maxHeight, maxWidth } = context?.containerDimensions ?? {};
+  // Use maxHeight/maxWidth to constrain your layout
+};
+```
+
+This replaces viewport-based sizing and ensures widgets respect the host's available space (especially important in inline mode).
+
 #### Runtime APIs
 
 ```typescript
-// Call other tools from the app
+// Call other tools from the widget
 const result = await app.callServerTool({
   name: 'tool_name',
   arguments: { arg: 'value' },
 });
 
+// Open an external link via the host
+await app.openLink({ url: 'https://example.com' });
+
+// Send a message to the host chat
+await app.sendMessage({
+  role: 'user',
+  content: [{ type: 'text', text: 'Hello from the widget!' }],
+});
+
+// Push widget state to the model context for future turns
+await app.updateModelContext({
+  content: [{ type: 'text', text: 'Current widget state summary' }],
+  structuredContent: { key: 'value' },
+});
+
 // Toggle display mode
 await app.requestDisplayMode({ mode: 'fullscreen' });
+```
+
+### UI Capability Negotiation
+
+The server inspects the client's capabilities during session initialization and adapts its responses:
+
+- **UI-capable hosts** (ChatGPT, VS Code, etc.) — Tools include `_meta.ui.resourceUri` and return `structuredContent` for the widget to render
+- **Text-only hosts** (terminal clients, basic MCP consumers) — Tools omit UI metadata and return plain text responses
+
+This happens automatically via `getUiCapability()` from `@modelcontextprotocol/ext-apps/server`. No widget changes are needed — the server handles the fallback.
+
+### Inline Widget Assets
+
+Some hosts (e.g. Claude.ai) require fully self-contained HTML — external `<script>` and `<link>` tags won't load inside their sandboxed iframes. Set:
+
+```bash
+INLINE_WIDGET_ASSETS=true
+```
+
+When enabled, the server reads the built JS and CSS files from `assets/` and inlines them directly into the HTML as `<script>` and `<style>` blocks, removing any `<link rel="modulepreload">` or `<link rel="preload">` hints. This produces a single self-contained HTML document that works in any host.
+
+### Mock App for Testing & Storybook
+
+The `createMockApp()` helper (`widgets/src/mocks/mock-app.ts`) provides a drop-in replacement for the real `App` instance, making it easy to test widgets and develop them in Storybook without a live MCP connection:
+
+```typescript
+import { createMockApp } from '../mocks/mock-app';
+
+const mockApp = createMockApp({
+  toolOutput: { echoedMessage: 'Hello', timestamp: '2025-01-01T00:00:00Z' },
+  hostContext: { theme: 'dark', displayMode: 'inline' },
+});
+
+// Pass to your widget
+<Echo app={mockApp} />
+
+// Simulate new tool results or context changes
+mockApp.emitToolResult({ echoedMessage: 'Updated', timestamp: '...' });
+mockApp.setHostContext({ theme: 'light', displayMode: 'fullscreen' });
 ```
 
 ### Example: Full Widget with Safe Area
@@ -585,6 +676,9 @@ CORS_ORIGIN=*
 
 # Asset Base URL (for CDN)
 # BASE_URL=https://cdn.example.com/assets
+
+# Inline widget assets into HTML (for hosts like Claude.ai)
+# INLINE_WIDGET_ASSETS=true
 ```
 
 ### Critical Configuration Notes

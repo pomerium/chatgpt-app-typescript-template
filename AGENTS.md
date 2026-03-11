@@ -201,22 +201,66 @@ const app = new App({ name: 'Echo', version: '1.0.0' });
 app.ontoolresult = (result) => {
   console.log(result.structuredContent);
 };
+app.onhostcontextchanged = (context) => {
+  console.log(context?.theme, context?.displayMode, context?.containerDimensions);
+};
 await app.connect();
 
 const hostContext = app.getHostContext();
 const theme = hostContext?.theme; // 'light' | 'dark'
 const displayMode = hostContext?.displayMode; // 'inline' | 'pip' | 'fullscreen'
 const safeAreaInsets = hostContext?.safeAreaInsets;
+const containerDimensions = hostContext?.containerDimensions; // { maxHeight, maxWidth, height, width }
 ```
 
-**Calling tools from the UI**:
+**Runtime APIs** - Call tools, open links, send messages, update model context, and toggle display mode:
 
 ```typescript
+// Call other tools from the widget
 const result = await app.callServerTool({
   name: 'echo',
   arguments: { message: 'Hello' },
 });
+
+// Open an external link via the host
+await app.openLink({ url: 'https://example.com' });
+
+// Send a message to the host chat
+await app.sendMessage({
+  role: 'user',
+  content: [{ type: 'text', text: 'Hello from the widget!' }],
+});
+
+// Push widget state to the model context for future turns
+await app.updateModelContext({
+  content: [{ type: 'text', text: 'Current widget state summary' }],
+  structuredContent: { key: 'value' },
+});
+
+// Toggle display mode (inline, pip, fullscreen)
+const modeResult = await app.requestDisplayMode({ mode: 'fullscreen' });
+// Always use modeResult.mode as the source of truth — the host may deny the request
 ```
+
+### Display Modes
+
+Widgets can run in three display modes: `inline` (within chat flow, default), `pip` (floating window), and `fullscreen` (overlay). The current mode is available via `hostContext.displayMode`. Use `app.requestDisplayMode()` to request a change — the host decides whether to honor it.
+
+### Container Dimensions
+
+Hosts provide `containerDimensions` (`maxHeight`, `maxWidth`, `height`, `width`) in the host context so widgets can size themselves responsively. This replaces viewport-based sizing and is especially important in inline mode where the widget shares space with chat content.
+
+### UI Capability Negotiation
+
+The server inspects client capabilities during session initialization via `getUiCapability()` from `@modelcontextprotocol/ext-apps/server`. UI-capable hosts get `_meta.ui.resourceUri` on tools and `structuredContent` in responses. Text-only hosts get plain text responses with no UI metadata. This is handled automatically in `createMcpServer()`.
+
+### Inline Widget Assets
+
+Set `INLINE_WIDGET_ASSETS=true` for hosts (e.g. Claude.ai) that require self-contained HTML. The server reads built JS/CSS from `assets/` and inlines them as `<script>`/`<style>` blocks, removing external references and preload hints. See `inlineWidgetAssets()` in `server/src/server.ts`.
+
+### Mock App for Testing & Storybook
+
+`createMockApp()` in `widgets/src/mocks/mock-app.ts` provides a drop-in `AppLike` replacement for the real `App`. It supports all runtime APIs (`callServerTool`, `openLink`, `sendMessage`, `updateModelContext`, `requestDisplayMode`) and exposes `emitToolResult()` / `setHostContext()` for simulating host events in tests and Storybook stories.
 
 ### Zod Validation Pattern
 
@@ -341,6 +385,7 @@ LOG_LEVEL=info                 # Pino log level: fatal, error, warn, info, debug
 SESSION_MAX_AGE=3600000        # Session cleanup threshold (1 hour in ms)
 CORS_ORIGIN=*                  # CORS origin (set to domain in production)
 BASE_URL=                      # Optional CDN URL for widget assets
+INLINE_WIDGET_ASSETS=true      # Inline JS/CSS into HTML for sandboxed hosts (e.g. Claude.ai)
 ```
 
 Requirements:
@@ -447,6 +492,11 @@ docker-compose -f docker/docker-compose.yml up -d
 
 - Always read `server/src/server.ts` to understand current tool implementations before modifying
 - The `_meta.ui.resourceUri` field is critical for UI binding - never omit it
+- UI capability negotiation is automatic — `getUiCapability()` checks client capabilities and the server omits UI metadata for text-only hosts
+- Widget components accept an `app` prop typed as `AppLike<T>` so the real `App` or `createMockApp()` can be injected
+- Use `containerDimensions.maxHeight` (not viewport height) for responsive widget sizing
+- When adding new App API calls (`openLink`, `sendMessage`, `updateModelContext`), add the method signature to `AppLike` in `widgets/src/types/mcp-app.ts` and the mock in `widgets/src/mocks/mock-app.ts`
+- Set `INLINE_WIDGET_ASSETS=true` when testing with hosts that sandbox iframes (e.g. Claude.ai)
 - Widget build is separate from server build - always run `npm run build:widgets` when modifying widgets
 - The `text/html;profile=mcp-app` MIME type is non-negotiable for MCP Apps UI loading
 - Session cleanup runs automatically but sessions are isolated - each HttpStreamable connection gets its own MCP server instance
