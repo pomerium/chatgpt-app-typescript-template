@@ -10,7 +10,6 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:widgets\"",
-    "dev:claude": "CLAUDE_DEV_MODE=true concurrently \"npm run dev:server\" \"npm run dev:widgets:inline\"",
     "dev:inline": "INLINE_DEV_MODE=true concurrently \"npm run dev:server\" \"npm run dev:widgets:inline\"",
     "dev:server": "npm run dev --workspace=server",
     "dev:widgets": "npm run dev --workspace=widgets",

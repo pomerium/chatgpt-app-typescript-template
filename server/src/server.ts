@@ -38,9 +38,7 @@ const SESSION_MAX_AGE = Number(process.env.SESSION_MAX_AGE || '3600000');
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 const WIDGET_PORT = Number(process.env.WIDGET_PORT || '4444');
 const { BASE_URL = '' } = process.env;
-const CLAUDE_DEV_MODE = process.env.CLAUDE_DEV_MODE === 'true';
 const INLINE_DEV_MODE = process.env.INLINE_DEV_MODE === 'true';
-const INLINE_ASSETS = CLAUDE_DEV_MODE || INLINE_DEV_MODE;
 
 const logger = pino({
   level: LOG_LEVEL,
@@ -63,7 +61,7 @@ const ECHO_WIDGET: WidgetDescriptor = {
   uri: 'ui://echo',
 };
 
-/** Pre-inlined widget HTML cache — populated at startup when INLINE_ASSETS is true */
+/** Pre-inlined widget HTML cache — populated at startup when INLINE_DEV_MODE is true */
 const inlinedHtmlCache = new Map<string, string>();
 
 function buildInlinedHtml(widgetId: string): string | null {
@@ -94,7 +92,7 @@ function preInlineWidgets(widgetIds: string[]) {
  * Read widget HTML - from Vite dev server in development, from assets in production
  */
 async function readWidgetHtml(widgetId: string): Promise<string> {
-  if (NODE_ENV === 'development' && !INLINE_ASSETS) {
+  if (NODE_ENV === 'development' && !INLINE_DEV_MODE) {
     try {
       const url = `http://localhost:${WIDGET_PORT}/${widgetId}.html`;
       logger.debug({ url }, 'Fetching widget HTML from Vite dev server');
@@ -157,16 +155,27 @@ function inlineWidgetAssets(html: string): string {
   logger.debug({ htmlLength: html.length }, 'Inlining widget assets');
   let nextHtml = html;
   const scripts = Array.from(
-    html.matchAll(/<script[^>]*type="module"[^>]*src="([^"]+)"[^>]*><\/script>/g)
+    html.matchAll(
+      /<script[^>]*type="module"[^>]*src="([^"]+)"[^>]*><\/script>/g
+    )
   );
-  logger.debug({ scriptMatches: scripts.length }, 'Found script tags to inline');
+  logger.debug(
+    { scriptMatches: scripts.length },
+    'Found script tags to inline'
+  );
   for (const match of scripts) {
     const src = match[1];
     const filename = path.basename(src.split('?')[0]);
     const assetPath = path.join(ASSETS_DIR, filename);
-    logger.debug({ src, filename, assetPath, exists: fs.existsSync(assetPath) }, 'Processing script');
+    logger.debug(
+      { src, filename, assetPath, exists: fs.existsSync(assetPath) },
+      'Processing script'
+    );
     if (!fs.existsSync(assetPath)) {
-      logger.warn({ assetPath }, 'Inline asset missing, leaving script tag as-is');
+      logger.warn(
+        { assetPath },
+        'Inline asset missing, leaving script tag as-is'
+      );
       continue;
     }
     const js = fs.readFileSync(assetPath);
@@ -184,33 +193,14 @@ function inlineWidgetAssets(html: string): string {
     const filename = path.basename(href.split('?')[0]);
     const assetPath = path.join(ASSETS_DIR, filename);
     if (!fs.existsSync(assetPath)) {
-      logger.warn({ assetPath }, 'Inline asset missing, leaving style tag as-is');
+      logger.warn(
+        { assetPath },
+        'Inline asset missing, leaving style tag as-is'
+      );
       continue;
     }
-    let css = fs.readFileSync(assetPath, 'utf-8');
 
-    if (INLINE_DEV_MODE) {
-      // Inline woff2 fonts as base64 data URIs and drop woff fallbacks
-      css = css.replace(
-        /,\s*url\([^)]*\.woff\)\s*format\("woff"\)/g,
-        ''
-      );
-      css = css.replace(
-        /url\(([^)]*\.woff2)\)/g,
-        (_match, fontUrl: string) => {
-          const fontFilename = path.basename(fontUrl.split('?')[0]);
-          const fontPath = path.join(ASSETS_DIR, fontFilename);
-          if (!fs.existsSync(fontPath)) {
-            logger.warn({ fontPath }, 'Font file missing, leaving url as-is');
-            return _match;
-          }
-          const fontB64 = fs.readFileSync(fontPath).toString('base64');
-          logger.debug({ fontFilename }, 'Font inlined as data URI');
-          return `url(data:font/woff2;base64,${fontB64})`;
-        }
-      );
-    }
-
+    const css = fs.readFileSync(assetPath, 'utf-8');
     const inlineTag = `<style>${css}</style>`;
     nextHtml = nextHtml.replace(match[0], () => inlineTag);
     logger.debug({ newLength: nextHtml.length }, 'CSS inlined');
@@ -220,7 +210,22 @@ function inlineWidgetAssets(html: string): string {
     .replace(/<link[^>]*rel="modulepreload"[^>]*>/g, '')
     .replace(/<link[^>]*rel="preload"[^>]*as="style"[^>]*>/g, '');
 
-  logger.debug({ finalLength: nextHtml.length, hasLocalhost: nextHtml.includes('localhost') }, 'Inlining complete');
+  if (INLINE_DEV_MODE) {
+    // Inject Google Fonts to replace the @fontsource @font-face rules stripped above.
+    // The host proxies these through its asset proxy so they load in the sandboxed iframe.
+    const googleFontsLink =
+      '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&display=swap">';
+    nextHtml = nextHtml.replace('</head>', `${googleFontsLink}\n</head>`);
+    logger.debug('Injected Google Fonts link for inline mode');
+  }
+
+  logger.debug(
+    {
+      finalLength: nextHtml.length,
+      hasLocalhost: nextHtml.includes('localhost'),
+    },
+    'Inlining complete'
+  );
 
   return nextHtml;
 }
@@ -230,7 +235,9 @@ function inlineWidgetAssets(html: string): string {
  */
 function createMcpServer(
   sessionId: string,
-  clientCapabilities?: ClientCapabilities & { extensions?: Record<string, unknown> }
+  clientCapabilities?: ClientCapabilities & {
+    extensions?: Record<string, unknown>;
+  }
 ): McpServer {
   const server = new McpServer({
     name: 'mcp-app-template',
@@ -256,18 +263,33 @@ function createMcpServer(
         const html = await readWidgetHtml(widgetId);
         const devWidgetOrigin = `http://localhost:${WIDGET_PORT}`;
         const devWidgetOriginAlt = `http://127.0.0.1:${WIDGET_PORT}`;
-        const devCspMeta =
-          NODE_ENV === 'development' && !INLINE_ASSETS
+        const cspMeta =
+          NODE_ENV === 'development'
             ? {
                 ui: {
                   csp: {
-                    resourceDomains: [devWidgetOrigin, devWidgetOriginAlt],
-                    connectDomains: [
-                      devWidgetOrigin,
-                      devWidgetOriginAlt,
-                      devWidgetOrigin.replace('http://', 'ws://'),
-                      devWidgetOriginAlt.replace('http://', 'ws://'),
+                    resourceDomains: [
+                      ...(!INLINE_DEV_MODE
+                        ? [devWidgetOrigin, devWidgetOriginAlt]
+                        : []),
+                      // Google Fonts — needed in inline dev mode where @fontsource local fonts
+                      // can't load in sandboxed iframes. Remove if you self-host fonts.
+                      ...(INLINE_DEV_MODE
+                        ? [
+                            'https://fonts.googleapis.com',
+                            'https://fonts.gstatic.com',
+                          ]
+                        : []),
+                      // Add any other resource domains your widget needs to load assets
                     ],
+                    connectDomains: !INLINE_DEV_MODE
+                      ? [
+                          devWidgetOrigin,
+                          devWidgetOriginAlt,
+                          devWidgetOrigin.replace('http://', 'ws://'),
+                          devWidgetOriginAlt.replace('http://', 'ws://'),
+                        ]
+                      : [],
                   },
                 },
               }
@@ -275,7 +297,7 @@ function createMcpServer(
 
         sessionLogger.info({ resourceUri, widgetId }, 'Widget resource loaded');
 
-        const finalHtml = INLINE_ASSETS
+        const finalHtml = INLINE_DEV_MODE
           ? (inlinedHtmlCache.get(widgetId) ?? inlineWidgetAssets(html))
           : html;
 
@@ -285,7 +307,7 @@ function createMcpServer(
               uri: resourceUri,
               mimeType: RESOURCE_MIME_TYPE,
               text: finalHtml,
-              _meta: devCspMeta,
+              _meta: cspMeta,
             },
           ],
         };
@@ -394,7 +416,6 @@ async function main() {
       logLevel: LOG_LEVEL,
       assetsDir: ASSETS_DIR,
       baseUrl: BASE_URL,
-      claudeDevMode: CLAUDE_DEV_MODE,
       inlineDevMode: INLINE_DEV_MODE,
     },
     'Starting MCP App Template server'
@@ -402,7 +423,7 @@ async function main() {
 
   const widgetIds = [ECHO_WIDGET.id];
 
-  if (INLINE_ASSETS) {
+  if (INLINE_DEV_MODE) {
     preInlineWidgets(widgetIds);
 
     // Watch for rebuilds from widget watch mode

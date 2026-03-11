@@ -185,8 +185,8 @@ Now that your app is working, you can:
 # Start everything (server + widgets in watch mode)
 npm run dev
 
-# Start for Claude.ai local dev (inlined assets + watch rebuild)
-npm run dev:claude
+# Inlined assets mode for testing in Claude.ai or sharing remotely via ssh -R 0 pom.run
+npm run dev:inline
 
 # Start only MCP server (watch mode)
 npm run dev:server
@@ -321,9 +321,6 @@ chatgpt-app-template/
 │   ├── echo.html
 │   ├── echo-[hash].js
 │   └── echo-[hash].css
-│
-├── scripts/
-│   └── build-all.mts       # Parallel widget builds
 │
 ├── docker/
 │   ├── Dockerfile          # Multi-stage build
@@ -578,20 +575,23 @@ This happens automatically via `getUiCapability()` from `@modelcontextprotocol/e
 
 ### Inline Widget Assets
 
-Some hosts (e.g. Claude.ai) require fully self-contained HTML — external `<script>` and `<link>` tags won't load inside their sandboxed iframes. Two inline dev modes are available:
+Some hosts (e.g. Claude.ai) require fully self-contained HTML — external `<script>` and `<link>` tags won't load inside their sandboxed iframes. Inline mode is also useful when sharing your work remotely via `ssh -R 0 pom.run`.
 
-| Command | Env Var | Fonts | Use Case |
-|---------|---------|-------|----------|
-| `npm run dev:claude` | `CLAUDE_DEV_MODE=true` | System fallback | Claude.ai local dev |
-| `npm run dev:inline` | `INLINE_DEV_MODE=true` | Inlined as data URIs | Remote sharing via tunnel |
+```bash
+npm run dev:inline
+```
 
-Both modes inline JS/CSS into the HTML as `<script>`/`<style>` blocks, producing self-contained HTML. The widget build runs in watch mode so file changes are automatically rebuilt.
+This produces self-contained HTML by:
 
-**`dev:claude`** — Claude.ai's CSP restricts `font-src` to `'self'` and `https://assets.claude.ai`, so custom fonts can't load via data URIs or CDNs. The system font fallback stack (`system-ui`, `monospace`) is used instead.
+- **JS/CSS** — inlined as `<script>`/`<style>` blocks
+- **Local images** — inlined as data URIs via Vite's `assetsInlineLimit`
+- **Fonts** — loaded via Google Fonts (the required domains `fonts.googleapis.com` and `fonts.gstatic.com` are automatically added to `resourceDomains` in the CSP)
 
-**`dev:inline`** — Inlines woff2 fonts as base64 data URIs in `@font-face` rules. Use this when sharing your work remotely via a tunnel (e.g. `ssh -R 0 pom.run`) so remote viewers see custom fonts. Works with hosts like ChatGPT that don't restrict `font-src`.
+The widget build runs in watch mode so file changes are automatically rebuilt.
 
-> Neither mode is needed in production — once deployed to a public URL, hosts fetch widget assets (JS, CSS, fonts) directly via normal URLs.
+> **When is inline mode needed?** Only when using `ssh -R 0 pom.run` to tunnel your local server. If you self-host tunneling, you can create a public route in [Pomerium](https://www.pomerium.com/) for widgets or host them elsewhere (Vercel, Netlify, etc.) — just add those domains to `resourceDomains` in the CSP metadata.
+>
+> Inline mode is not needed in production — once deployed to a public URL, hosts fetch widget assets directly via normal URLs.
 
 ### Loading External Resources (Images, APIs, etc.)
 
@@ -722,10 +722,7 @@ CORS_ORIGIN=*
 # Asset Base URL (for CDN)
 # BASE_URL=https://cdn.example.com/assets
 
-# Local dev only: inline JS/CSS for Claude.ai (npm run dev:claude)
-# CLAUDE_DEV_MODE=true
-
-# Local dev only: inline JS/CSS + fonts as data URIs (npm run dev:inline)
+# Local dev only: inline JS/CSS + images, fonts via Google Fonts (npm run dev:inline)
 # INLINE_DEV_MODE=true
 ```
 
