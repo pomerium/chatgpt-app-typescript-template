@@ -1,4 +1,4 @@
-import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { Logger } from 'pino';
 
@@ -6,7 +6,7 @@ import type { Logger } from 'pino';
  * Session data for an MCP server instance
  */
 export interface SessionData {
-  server: Server;
+  server: McpServer;
   transport: StreamableHTTPServerTransport;
   createdAt: Date;
 }
@@ -28,7 +28,7 @@ export class SessionManager {
    */
   create(
     sessionId: string,
-    server: Server,
+    server: McpServer,
     transport: StreamableHTTPServerTransport
   ): SessionData {
     const sessionData: SessionData = {

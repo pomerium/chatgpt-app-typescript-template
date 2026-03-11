@@ -4,7 +4,10 @@ import { z } from 'zod';
  * Echo tool input schema (Zod)
  */
 export const EchoToolInputSchema = z.object({
-  message: z.string().min(1, 'Message cannot be empty'),
+  message: z
+    .string()
+    .min(1, 'Message cannot be empty')
+    .describe('The message to echo back'),
 });
 
 export type EchoToolInput = z.infer<typeof EchoToolInputSchema>;

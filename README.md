@@ -1,12 +1,18 @@
-# ChatGPT App Template
+# MCP Apps Template
 
-A well-architected starter template demonstrating best practices for building [ChatGPT apps](https://developers.openai.com/apps-sdk/) using the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) with [React](https://react.dev/) widgets. It leverages TypeScript, Tailwind CSS v4, Pino logging, Storybook, and Vitest for a robust development experience.
+A well-architected starter template demonstrating best practices for building MCP Apps using the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) with [React](https://react.dev/) widgets. It leverages TypeScript, Tailwind CSS v4, Pino logging, Storybook, and Vitest for a robust development experience.
 
 ## Features
 
-- **MCP Server** - Node.js server with base `Server` class (preserves `_meta` fields)
-- **Echo Tool** - Example tool with [Zod](https://zod.dev/) validation and widget response
-- **React Widgets** - Interactive Echo component with `callTool` demo
+- **MCP Server** - Node.js server with `McpServer` and MCP Apps helpers
+- **Echo Tool** - Example tool with [Zod](https://zod.dev/) validation and UI binding
+- **React Widgets** - Interactive Echo component with MCP Apps `App` API demo
+- **Display Modes** - Inline, picture-in-picture, and fullscreen with runtime toggling via `requestDisplayMode()`
+- **App API Demo** - `callServerTool`, `openLink`, `sendMessage`, `updateModelContext` showcased in the Echo widget
+- **UI Capability Negotiation** - Server detects host capabilities and falls back to text-only for non-UI clients
+- **Inline Widget Assets** - Self-contained HTML mode for hosts that sandbox iframes (e.g. Claude.ai)
+- **Container Dimensions** - Responsive widget sizing using host-provided `containerDimensions`
+- **Mock App** - Drop-in `createMockApp()` helper for testing and Storybook without a live MCP connection
 - **[Pino](https://getpino.io/) Logging** - Structured logging with pretty printing in development
 - **TypeScript** - Strict mode with ES2023 target
 - **[Tailwind CSS v4](https://tailwindcss.com/)** - Modern styling with dark mode support
@@ -20,16 +26,16 @@ A well-architected starter template demonstrating best practices for building [C
 
 ```mermaid
 graph TD
-    A[ChatGPT] -->|HTTPStreamable| B[MCP Server<br/>Node.js + Express]
-    B -->|_meta.outputTemplate| C[Widget<br/>React in iframe]
+    A[MCP Host] -->|HTTPStreamable| B[MCP Server<br/>Node.js + Express]
+    B -->|_meta.ui.resourceUri| C[App View<br/>React in iframe]
 
     B -.-> B1[Echo Tool]
     B -.-> B2[Resource Registration]
-    B -.-> B3[text/html+skybridge<br/>MIME type]
+    B -.-> B3[text/html;profile=mcp-app<br/>MIME type]
 
-    C -.-> C1[Reads window.openai.toolOutput]
-    C -.-> C2[Calls window.openai.callTool]
-    C -.-> C3[Theme, displayMode, safeArea]
+    C -.-> C1[Receives App.ontoolresult]
+    C -.-> C2[callServerTool, openLink,<br/>sendMessage, updateModelContext]
+    C -.-> C3[Theme, displayMode, safeArea,<br/>containerDimensions]
 
     style A fill:#e1f5ff
     style B fill:#fff4e6
@@ -63,7 +69,7 @@ This starts both the MCP server and widget dev server:
 - **MCP Server**: `http://localhost:8080`
 - **Widget Assets**: `http://localhost:4444`
 
-> **Note:** The MCP server is a backend service. To test it, follow the ChatGPT connection steps below or use `npm run inspect` for local testing.
+> **Note:** The MCP server is a backend service. To test it, follow the host connection steps below (ChatGPT example) or use `npm run inspect` for local testing.
 
 You should see output indicating both servers are running successfully:
 
@@ -98,7 +104,7 @@ You should see output indicating both servers are running successfully:
 [1]
 [1]   ➜  Local:   http://localhost:4444/
 [1]   ➜  Network: use --host to expose
-[0] [12:45:12] INFO: Starting ChatGPT App Template server
+[0] [12:45:12] INFO: Starting MCP App Template server
 [0]     port: 8080
 [0]     nodeEnv: "development"
 [0]     logLevel: "info"
@@ -109,7 +115,7 @@ You should see output indicating both servers are running successfully:
 [0]     healthEndpoint: "http://localhost:8080/health"
 ```
 
-### Connect to ChatGPT
+### Connect to a Host (ChatGPT example)
 
 To test your app in ChatGPT, you need to expose your local server publicly. The fastest way is using [Pomerium's SSH tunnel](https://www.pomerium.com/docs/tcp/ssh):
 
@@ -144,7 +150,7 @@ Look for the **Port Forward Status** section showing:
 
 **3. Add to ChatGPT:**
 
-1. [Enable ChatGPT apps dev mode](https://platform.openai.com/docs/guides/developer-mode) in your ChatGPT settings
+1. Enable MCP apps dev mode in your ChatGPT settings
 2. Go to: **Settings → Connectors → Add Connector**
 3. Enter your Remote URL + `/mcp`, e.g. `https://template.first-wallaby-240.pom.run/mcp`
 4. Save the connector
@@ -160,13 +166,15 @@ Look for the **Port Forward Status** section showing:
 
 The tunnel stays active as long as the SSH session is running.
 
+**Other hosts:** Claude Desktop, VS Code, Goose, and other MCP Apps hosts follow the same pattern—add a connector to your `/mcp` endpoint and refresh after changes.
+
 ### Success! What's Next?
 
 Now that your app is working, you can:
 
 - **[Customize the echo tool](#adding-new-tools)** - Modify the example tool or add your own logic
 - **[Create a new widget](#widget-development)** - Build custom UI components for your tools
-- **[Test locally](#local-testing-with-mcp-inspector)** - Use `npm run inspect` for debugging without ChatGPT
+- **[Test locally](#local-testing-with-mcp-inspector)** - Use `npm run inspect` for debugging without a host
 - **[Deploy to production](#production-deployment)** - Take your app live when ready
 
 ## Available Commands
@@ -176,6 +184,9 @@ Now that your app is working, you can:
 ```bash
 # Start everything (server + widgets in watch mode)
 npm run dev
+
+# Inlined assets mode for testing in Claude.ai or sharing remotely via ssh -R 0 pom.run
+npm run dev:inline
 
 # Start only MCP server (watch mode)
 npm run dev:server
@@ -259,7 +270,7 @@ This opens a browser interface to:
 
 #### 2. Connect from ChatGPT
 
-For complete ChatGPT connection instructions, see the [Quick Start: Connect to ChatGPT](#connect-to-chatgpt) section above.
+For complete ChatGPT connection instructions, see the [Quick Start: Connect to a Host](#connect-to-a-host-chatgpt-example) section above.
 
 **Already connected?** After making code changes:
 
@@ -299,10 +310,10 @@ chatgpt-app-template/
 │   │   │   └── styles.css
 │   │   ├── components/
 │   │   │   └── ui/              # ShadCN components
-│   │   ├── hooks/
-│   │   │   └── use-openai-global.ts
+│   │   ├── mocks/
+│   │   │   └── mock-app.ts       # MCP Apps mock for tests/stories
 │   │   └── types/
-│   │       └── openai.d.ts
+│   │       └── mcp-app.ts        # MCP Apps types for UI wiring
 │   ├── .storybook/         # Storybook config
 │   └── package.json        # Widget dependencies
 │
@@ -310,9 +321,6 @@ chatgpt-app-template/
 │   ├── echo.html
 │   ├── echo-[hash].js
 │   └── echo-[hash].css
-│
-├── scripts/
-│   └── build-all.mts       # Parallel widget builds
 │
 ├── docker/
 │   ├── Dockerfile          # Multi-stage build
@@ -326,42 +334,40 @@ chatgpt-app-template/
 ### 1. Define Tool Schema
 
 ```typescript
-// server/src/server.ts
-
-const myTool: Tool = {
-  name: 'my_tool',
-  description: 'Does something cool',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      input: { type: 'string', description: 'Tool input' },
-    },
-    required: ['input'],
-  },
-};
+// server/src/types.ts
+export const MyToolInputSchema = z.object({
+  input: z.string().min(1, 'Input is required'),
+});
 ```
 
-### 2. Implement Tool Handler
+### 2. Register Tool (with UI)
 
 ```typescript
-// In CallToolRequestSchema handler
-
-if (name === 'my_tool') {
-  const args = MyToolInputSchema.parse(request.params.arguments);
-
-  return {
-    content: [{ type: 'text', text: 'Result' }],
-    structuredContent: {
-      result: args.input,
+registerAppTool(
+  server,
+  'my_tool',
+  {
+    title: 'My Tool',
+    description: 'Does something cool',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        input: { type: 'string', description: 'Tool input' },
+      },
+      required: ['input'],
     },
     _meta: {
-      outputTemplate: {
-        type: 'resource',
-        resource: { uri: 'ui://my-widget' },
-      },
+      ui: { resourceUri: 'ui://my-widget' },
     },
-  };
-}
+  },
+  async (args) => {
+    const input = MyToolInputSchema.parse(args).input;
+    return {
+      content: [{ type: 'text', text: 'Result' }],
+      structuredContent: { result: input },
+    };
+  }
+);
 ```
 
 ### 3. Create Widget
@@ -372,11 +378,19 @@ Create `widgets/src/widgets/my-widget.tsx`:
 // widgets/src/widgets/my-widget.tsx
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { useOpenAiGlobal } from '../hooks/use-openai-global';
+import { App } from '@modelcontextprotocol/ext-apps';
+import { useEffect, useState } from 'react';
 
 function MyWidget() {
-  const toolOutput = useOpenAiGlobal('toolOutput');
-  const theme = useOpenAiGlobal('theme');
+  const [toolOutput, setToolOutput] = useState(null);
+  const [theme, setTheme] = useState('light');
+
+  useEffect(() => {
+    const app = new App({ name: 'MyWidget', version: '1.0.0' });
+    app.ontoolresult = (result) => setToolOutput(result.structuredContent ?? null);
+    app.onhostcontextchanged = (context) => setTheme(context?.theme ?? 'light');
+    app.connect();
+  }, []);
 
   return (
     <div className={theme === 'dark' ? 'dark' : ''}>
@@ -400,20 +414,21 @@ if (rootElement) {
 ### 4. Register Widget Resource
 
 ```typescript
-// In ReadResourceRequestSchema handler
-
-if (uri === 'ui://my-widget') {
-  const html = readWidgetHtml('my-widget');
-  return {
+registerAppResource(
+  server,
+  'ui://my-widget',
+  'ui://my-widget',
+  { mimeType: RESOURCE_MIME_TYPE },
+  async () => ({
     contents: [
       {
-        uri,
-        mimeType: 'text/html+skybridge', // CRITICAL!
-        text: html,
+        uri: 'ui://my-widget',
+        mimeType: RESOURCE_MIME_TYPE,
+        text: await readWidgetHtml('my-widget'),
       },
     ],
-  };
-}
+  })
+);
 ```
 
 ### 5. Build
@@ -436,10 +451,17 @@ Widgets include both the component and mounting code:
 ```tsx
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { useOpenAiGlobal } from '../hooks/use-openai-global';
+import { useEffect, useState } from 'react';
+import { App } from '@modelcontextprotocol/ext-apps';
 
 function MyWidget() {
-  const toolOutput = useOpenAiGlobal('toolOutput');
+  const [toolOutput, setToolOutput] = useState(null);
+
+  useEffect(() => {
+    const app = new App({ name: 'MyWidget', version: '1.0.0' });
+    app.ontoolresult = (result) => setToolOutput(result.structuredContent ?? null);
+    app.connect();
+  }, []);
   return <div>Widget content</div>;
 }
 
@@ -468,84 +490,202 @@ The build system:
 - Bundles the component and mounting code together
 - Creates content-hashed bundles and HTML templates
 
-### window.openai API Reference
+### MCP Apps `App` API Reference
 
-#### State & Data
-
-```typescript
-const toolOutput = useOpenAiGlobal('toolOutput'); // Tool's structured content
-const toolInput = useOpenAiGlobal('toolInput'); // Tool arguments
-const widgetState = useOpenAiGlobal('widgetState'); // Persistent state from host
-```
-
-**Setting State**: Use `window.openai.setWidgetState(newState)` to persist state.
-
-**State Limits**: Keep `widgetState` under **4,000 tokens** for optimal performance.
-
-#### Context Signals
+#### Tool Results & Host Context
 
 ```typescript
-const theme = useOpenAiGlobal('theme'); // 'light' | 'dark'
-const displayMode = useOpenAiGlobal('displayMode'); // 'inline' | 'pip' | 'fullscreen'
-const maxHeight = useOpenAiGlobal('maxHeight'); // Max height in pixels
-const safeArea = useOpenAiGlobal('safeArea'); // Insets for responsive layout
-const viewport = useOpenAiGlobal('viewport'); // { width, height }
-const locale = useOpenAiGlobal('locale'); // User locale (e.g., 'en-US')
+const app = new App({ name: 'Echo', version: '1.0.0' });
+app.ontoolresult = (result) => {
+  console.log(result.structuredContent);
+};
+app.onhostcontextchanged = (context) => {
+  console.log(context?.theme, context?.displayMode);
+};
+await app.connect();
 ```
+
+#### Display Modes
+
+Widgets can run in three display modes provided by the host:
+
+- **`inline`** — Rendered within the chat message flow (default)
+- **`pip`** — Picture-in-picture floating window
+- **`fullscreen`** — Full-screen overlay
+
+The current mode is available via `hostContext.displayMode`. Widgets can request a mode change at runtime:
+
+```typescript
+// Toggle between inline and fullscreen
+const result = await app.requestDisplayMode({ mode: 'fullscreen' });
+console.log(result.mode); // the mode the host actually switched to
+```
+
+The host decides whether to honor the request — always use the returned `result.mode` as the source of truth.
+
+#### Container Dimensions
+
+Hosts provide `containerDimensions` in the host context so widgets can size themselves responsively:
+
+```typescript
+app.onhostcontextchanged = (context) => {
+  const { maxHeight, maxWidth } = context?.containerDimensions ?? {};
+  // Use maxHeight/maxWidth to constrain your layout
+};
+```
+
+This replaces viewport-based sizing and ensures widgets respect the host's available space (especially important in inline mode).
 
 #### Runtime APIs
 
 ```typescript
-// Call other tools from widget
-const result = await window.openai?.callTool('tool_name', { arg: 'value' });
+// Call other tools from the widget
+const result = await app.callServerTool({
+  name: 'tool_name',
+  arguments: { arg: 'value' },
+});
+
+// Open an external link via the host
+await app.openLink({ url: 'https://example.com' });
+
+// Send a message to the host chat
+await app.sendMessage({
+  role: 'user',
+  content: [{ type: 'text', text: 'Hello from the widget!' }],
+});
+
+// Push widget state to the model context for future turns
+await app.updateModelContext({
+  content: [{ type: 'text', text: 'Current widget state summary' }],
+  structuredContent: { key: 'value' },
+});
 
 // Toggle display mode
-await window.openai?.requestDisplayMode({ mode: 'fullscreen' });
+await app.requestDisplayMode({ mode: 'fullscreen' });
+```
 
-// Send follow-up message
-await window.openai?.sendFollowUpMessage({ prompt: 'Continue...' });
+### UI Capability Negotiation
 
-// File operations
-const { fileId } = await window.openai?.uploadFile(file);
-const { url } = await window.openai?.getFileDownloadUrl({ fileId });
+The server inspects the client's capabilities during session initialization and adapts its responses:
 
-// Open external links
-window.openai?.openExternal({ href: 'https://example.com' });
+- **UI-capable hosts** (ChatGPT, VS Code, etc.) — Tools include `_meta.ui.resourceUri` and return `structuredContent` for the widget to render
+- **Text-only hosts** (terminal clients, basic MCP consumers) — Tools omit UI metadata and return plain text responses
 
-// Close widget
-await window.openai?.requestClose();
+This happens automatically via `getUiCapability()` from `@modelcontextprotocol/ext-apps/server`. No widget changes are needed — the server handles the fallback.
+
+### Inline Widget Assets
+
+Some hosts (e.g. Claude.ai) require fully self-contained HTML — external `<script>` and `<link>` tags won't load inside their sandboxed iframes. Inline mode is also useful when sharing your work remotely via `ssh -R 0 pom.run`.
+
+```bash
+npm run dev:inline
+```
+
+This produces self-contained HTML by:
+
+- **JS/CSS** — inlined as `<script>`/`<style>` blocks
+- **Local images** — inlined as data URIs via Vite's `assetsInlineLimit`
+- **Fonts** — loaded via Google Fonts (the required domains `fonts.googleapis.com` and `fonts.gstatic.com` are automatically added to `resourceDomains` in the CSP)
+
+The widget build runs in watch mode so file changes are automatically rebuilt.
+
+> **When is inline mode needed?** Only when using `ssh -R 0 pom.run` to tunnel your local server. If you self-host tunneling, you can create a public route in [Pomerium](https://www.pomerium.com/) for widgets or host them elsewhere (Vercel, Netlify, etc.) — just add those domains to `resourceDomains` in the CSP metadata.
+>
+> Inline mode is not needed in production — once deployed to a public URL, hosts fetch widget assets directly via normal URLs.
+
+### Loading External Resources (Images, APIs, etc.)
+
+MCP Apps hosts render widgets inside sandboxed iframes with a strict Content Security Policy (CSP). By default, **remote images and other external resources will be blocked** — even if the HTTP request succeeds (returns 200), the browser won't render the response inside the iframe.
+
+To allow external domains, declare them in the resource's `_meta.ui.csp.resourceDomains`:
+
+```typescript
+return {
+  contents: [
+    {
+      uri: resourceUri,
+      mimeType: RESOURCE_MIME_TYPE,
+      text: html,
+      _meta: {
+        ui: {
+          csp: {
+            resourceDomains: ['https://cdn.example.com', 'https://api.example.com'],
+            connectDomains: ['https://api.example.com'], // for fetch/XHR
+          },
+        },
+      },
+    },
+  ],
+};
+```
+
+The host merges these domains into the iframe's CSP, allowing the widget to load images, fonts, and other resources from the specified origins.
+
+**Key points:**
+
+- **Remote images require `resourceDomains`** — without it, `<img src="https://...">` will silently fail in most hosts
+- **Data URIs always work** — images imported via Vite (`import img from './photo.png'`) are inlined as data URIs when `assetsInlineLimit` is set (see [Inline Widget Assets](#inline-widget-assets))
+- **Each domain must be explicitly listed** — wildcards are not supported; include all domains your widget needs (e.g. both `https://picsum.photos` and `https://fastly.picsum.photos` if the first redirects to the second)
+- **`connectDomains`** — use this for `fetch()`/`XMLHttpRequest` calls to external APIs
+
+### Mock App for Testing & Storybook
+
+The `createMockApp()` helper (`widgets/src/mocks/mock-app.ts`) provides a drop-in replacement for the real `App` instance, making it easy to test widgets and develop them in Storybook without a live MCP connection:
+
+```typescript
+import { createMockApp } from '../mocks/mock-app';
+
+const mockApp = createMockApp({
+  toolOutput: { echoedMessage: 'Hello', timestamp: '2025-01-01T00:00:00Z' },
+  hostContext: { theme: 'dark', displayMode: 'inline' },
+});
+
+// Pass to your widget
+<Echo app={mockApp} />
+
+// Simulate new tool results or context changes
+mockApp.emitToolResult({ echoedMessage: 'Updated', timestamp: '...' });
+mockApp.setHostContext({ theme: 'light', displayMode: 'fullscreen' });
 ```
 
 ### Example: Full Widget with Safe Area
 
 ```tsx
 // widgets/src/widgets/my-widget.tsx
-import { StrictMode, useState } from 'react';
+import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { useOpenAiGlobal } from '../hooks/use-openai-global';
+import { App } from '@modelcontextprotocol/ext-apps';
 
 function MyWidget() {
-  const toolOutput = useOpenAiGlobal('toolOutput');
-  const theme = useOpenAiGlobal('theme');
-  const safeArea = useOpenAiGlobal('safeArea');
-  const widgetState = useOpenAiGlobal('widgetState');
+  const [toolOutput, setToolOutput] = useState(null);
+  const [theme, setTheme] = useState('light');
+  const [safeAreaInsets, setSafeAreaInsets] = useState({
+    top: 0,
+    bottom: 0,
+  });
 
-  const count = widgetState?.count ?? 0;
+  useEffect(() => {
+    const app = new App({ name: 'MyWidget', version: '1.0.0' });
+    app.ontoolresult = (result) => setToolOutput(result.structuredContent ?? null);
+    app.onhostcontextchanged = (context) => {
+      setTheme(context?.theme ?? 'light');
+      setSafeAreaInsets({
+        top: context?.safeAreaInsets?.top ?? 0,
+        bottom: context?.safeAreaInsets?.bottom ?? 0,
+      });
+    };
+    app.connect();
+  }, []);
 
   const containerStyle = {
-    paddingTop: safeArea?.insets?.top || 0,
-    paddingBottom: safeArea?.insets?.bottom || 0,
-  };
-
-  const handleIncrement = () => {
-    window.openai?.setWidgetState({ count: count + 1 });
+    paddingTop: safeAreaInsets.top,
+    paddingBottom: safeAreaInsets.bottom,
   };
 
   return (
     <div style={containerStyle} className={theme === 'dark' ? 'dark' : ''}>
       <h1>My Widget</h1>
       <p>Tool output: {JSON.stringify(toolOutput)}</p>
-      <button onClick={handleIncrement}>Count: {count}</button>
     </div>
   );
 }
@@ -581,20 +721,23 @@ CORS_ORIGIN=*
 
 # Asset Base URL (for CDN)
 # BASE_URL=https://cdn.example.com/assets
+
+# Local dev only: inline JS/CSS + images, fonts via Google Fonts (npm run dev:inline)
+# INLINE_DEV_MODE=true
 ```
 
 ### Critical Configuration Notes
 
-#### text/html+skybridge MIME Type
+#### text/html;profile=mcp-app MIME Type
 
-**Required** for widgets to load in ChatGPT:
+**Required** for MCP Apps hosts to load UI:
 
 ```typescript
 return {
   contents: [
     {
       uri: 'ui://my-widget',
-      mimeType: 'text/html+skybridge', // ← CRITICAL
+      mimeType: 'text/html;profile=mcp-app', // ← CRITICAL
       text: html,
     },
   ],
@@ -641,16 +784,11 @@ return {
 {
   content: [{ type: 'text', text: 'Human-readable message' }],
   structuredContent: {
-    // JSON data passed to widget via window.openai.toolOutput
+    // JSON data passed to the app via App.ontoolresult
     echoedMessage: 'Hello',
     timestamp: '2025-01-...'
   },
-  _meta: {
-    outputTemplate: {
-      type: 'resource',
-      resource: { uri: 'ui://echo' }
-    }
-  }
+  // UI binding is defined in tool _meta.ui.resourceUri
 }
 ```
 
@@ -684,7 +822,7 @@ npm run test:coverage
 - Component rendering
 - User interactions
 - Accessibility (a11y) compliance
-- window.openai API mocking
+- MCP Apps App API mocking
 
 ### MCP Inspector Workflow
 
@@ -774,10 +912,10 @@ curl http://localhost:8080/health
 
 **Deployment Requirements:**
 
-- Deploy to a publicly accessible URL (ChatGPT requires HTTPS)
-- Ensure `assets/` directory is deployed with the server
-- Configure reverse proxy if needed (nginx, Caddy, etc.)
-- Set up SSL/TLS certificates
+- **MCP Server:** Must be behind a [Pomerium](https://www.pomerium.com/) route, which handles OAuth authentication and lets you set policies to control who can access the server and which tools they can use
+- **Widget assets:** Must be served from a publicly accessible URL — either from the same server, a CDN (`BASE_URL`), or a static host like Netlify/Vercel
+- Ensure `assets/` directory is deployed with the server (or served separately via `BASE_URL`)
+- Set up SSL/TLS certificates (most MCP hosts require HTTPS)
 
 **Monitoring:**
 
@@ -789,18 +927,18 @@ curl http://localhost:8080/health
 
 ### Widget Not Loading
 
-**Symptom**: Widget doesn't appear in ChatGPT
+**Symptom**: Widget doesn't appear in a host
 
 **Solutions**:
 
-1. Verify `text/html+skybridge` MIME type in resource registration
+1. Verify `text/html;profile=mcp-app` MIME type in resource registration
 2. Check assets directory exists: `ls assets/`
 3. Rebuild widgets: `npm run build:widgets`
-4. Restart server and refresh connector in ChatGPT
+4. Restart server and refresh connector in the host
 
 ### Tool Not Listed
 
-**Symptom**: Tool doesn't appear in ChatGPT
+**Symptom**: Tool doesn't appear in a host
 
 **Solutions**:
 
@@ -842,13 +980,13 @@ curl http://localhost:8080/health
 
 ## Architecture Decisions
 
-### Why Base `Server` Class?
+### Why `McpServer` + MCP Apps Helpers?
 
-The template uses the **base `Server` class** from `@modelcontextprotocol/sdk/server/index.js`, not the higher-level `McpServer` class, because:
+The template uses `McpServer` from `@modelcontextprotocol/sdk/server/mcp.js` together with `@modelcontextprotocol/ext-apps/server` helpers because:
 
-- ChatGPT apps require the `_meta` field for widget references
-- Higher-level abstractions might strip custom metadata
-- Proven pattern from OpenAI's official examples
+- `registerAppTool` and `registerAppResource` handle MCP Apps metadata wiring consistently
+- Tool UI binding is declared with `_meta.ui.resourceUri` in one place
+- The pattern is portable across MCP Apps hosts (ChatGPT, VS Code, Claude, Goose)
 
 ### Why Node.js 22 + ES2023?
 
@@ -885,7 +1023,7 @@ MIT
 
 **Built with**:
 
-- [OpenAI Apps SDK](https://developers.openai.com/apps-sdk/)
+- [MCP Apps Spec](https://modelcontextprotocol.github.io/ext-apps/api/)
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 - [React 19](https://react.dev/)
 - [Tailwind CSS v4](https://tailwindcss.com/)

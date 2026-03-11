@@ -7,24 +7,17 @@ import { config } from 'dotenv';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
 import { v4 as uuidv4 } from 'uuid';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
+import type { ClientCapabilities } from '@modelcontextprotocol/sdk/types.js';
+import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  ListResourcesRequestSchema,
-  ListResourceTemplatesRequestSchema,
-  ReadResourceRequestSchema,
-  isInitializeRequest,
-  type CallToolRequest,
-  type CallToolResult,
-  type ListToolsRequest,
-  type ListResourcesRequest,
-  type ListResourceTemplatesRequest,
-  type ReadResourceRequest,
-  type Tool,
-} from '@modelcontextprotocol/sdk/types.js';
+  getUiCapability,
+  registerAppResource,
+  registerAppTool,
+  RESOURCE_MIME_TYPE,
+} from '@modelcontextprotocol/ext-apps/server';
 import { SessionManager } from './utils/session.js';
 import {
   EchoToolInputSchema,
@@ -45,6 +38,7 @@ const SESSION_MAX_AGE = Number(process.env.SESSION_MAX_AGE || '3600000');
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 const WIDGET_PORT = Number(process.env.WIDGET_PORT || '4444');
 const { BASE_URL = '' } = process.env;
+const INLINE_DEV_MODE = process.env.INLINE_DEV_MODE === 'true';
 
 const logger = pino({
   level: LOG_LEVEL,
@@ -67,11 +61,38 @@ const ECHO_WIDGET: WidgetDescriptor = {
   uri: 'ui://echo',
 };
 
+/** Pre-inlined widget HTML cache — populated at startup when INLINE_DEV_MODE is true */
+const inlinedHtmlCache = new Map<string, string>();
+
+function buildInlinedHtml(widgetId: string): string | null {
+  const htmlPath = path.join(ASSETS_DIR, `${widgetId}.html`);
+  if (!fs.existsSync(htmlPath)) {
+    logger.warn({ htmlPath }, 'Cannot pre-inline: HTML file not found');
+    return null;
+  }
+  const html = fs.readFileSync(htmlPath, 'utf-8');
+  const inlined = inlineWidgetAssets(html);
+  logger.info(
+    { widgetId, originalLength: html.length, inlinedLength: inlined.length },
+    'Pre-inlined widget HTML'
+  );
+  return inlined;
+}
+
+function preInlineWidgets(widgetIds: string[]) {
+  for (const id of widgetIds) {
+    const html = buildInlinedHtml(id);
+    if (html) {
+      inlinedHtmlCache.set(id, html);
+    }
+  }
+}
+
 /**
  * Read widget HTML - from Vite dev server in development, from assets in production
  */
 async function readWidgetHtml(widgetId: string): Promise<string> {
-  if (NODE_ENV === 'development') {
+  if (NODE_ENV === 'development' && !INLINE_DEV_MODE) {
     try {
       const url = `http://localhost:${WIDGET_PORT}/${widgetId}.html`;
       logger.debug({ url }, 'Fetching widget HTML from Vite dev server');
@@ -130,189 +151,259 @@ async function readWidgetHtml(widgetId: string): Promise<string> {
   return fs.readFileSync(htmlPath, 'utf-8');
 }
 
+function inlineWidgetAssets(html: string): string {
+  logger.debug({ htmlLength: html.length }, 'Inlining widget assets');
+  let nextHtml = html;
+  const scripts = Array.from(
+    html.matchAll(
+      /<script[^>]*type="module"[^>]*src="([^"]+)"[^>]*><\/script>/g
+    )
+  );
+  logger.debug(
+    { scriptMatches: scripts.length },
+    'Found script tags to inline'
+  );
+  for (const match of scripts) {
+    const src = match[1];
+    const filename = path.basename(src.split('?')[0]);
+    const assetPath = path.join(ASSETS_DIR, filename);
+    logger.debug(
+      { src, filename, assetPath, exists: fs.existsSync(assetPath) },
+      'Processing script'
+    );
+    if (!fs.existsSync(assetPath)) {
+      logger.warn(
+        { assetPath },
+        'Inline asset missing, leaving script tag as-is'
+      );
+      continue;
+    }
+    const js = fs.readFileSync(assetPath);
+    const b64 = js.toString('base64');
+    const inlineTag = `<script type="module" src="data:text/javascript;base64,${b64}"></script>`;
+    nextHtml = nextHtml.replace(match[0], () => inlineTag);
+    logger.debug({ newLength: nextHtml.length }, 'JS inlined');
+  }
+
+  const styles = Array.from(
+    html.matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/g)
+  );
+  for (const match of styles) {
+    const href = match[1];
+    const filename = path.basename(href.split('?')[0]);
+    const assetPath = path.join(ASSETS_DIR, filename);
+    if (!fs.existsSync(assetPath)) {
+      logger.warn(
+        { assetPath },
+        'Inline asset missing, leaving style tag as-is'
+      );
+      continue;
+    }
+
+    const css = fs.readFileSync(assetPath, 'utf-8');
+    const inlineTag = `<style>${css}</style>`;
+    nextHtml = nextHtml.replace(match[0], () => inlineTag);
+    logger.debug({ newLength: nextHtml.length }, 'CSS inlined');
+  }
+
+  nextHtml = nextHtml
+    .replace(/<link[^>]*rel="modulepreload"[^>]*>/g, '')
+    .replace(/<link[^>]*rel="preload"[^>]*as="style"[^>]*>/g, '');
+
+  if (INLINE_DEV_MODE) {
+    // Inject Google Fonts to replace the @fontsource @font-face rules stripped above.
+    // The host proxies these through its asset proxy so they load in the sandboxed iframe.
+    const googleFontsLink =
+      '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&display=swap">';
+    nextHtml = nextHtml.replace('</head>', `${googleFontsLink}\n</head>`);
+    logger.debug('Injected Google Fonts link for inline mode');
+  }
+
+  logger.debug(
+    {
+      finalLength: nextHtml.length,
+      hasLocalhost: nextHtml.includes('localhost'),
+    },
+    'Inlining complete'
+  );
+
+  return nextHtml;
+}
+
 /**
  * Create an MCP server instance with echo tool
  */
-function createMcpServer(sessionId: string): Server {
-  const server = new Server(
-    {
-      name: 'chatgpt-app-template',
-      version: '1.0.0',
-    },
-    {
-      capabilities: {
-        tools: {},
-        resources: {},
-      },
-    }
-  );
+function createMcpServer(
+  sessionId: string,
+  clientCapabilities?: ClientCapabilities & {
+    extensions?: Record<string, unknown>;
+  }
+): McpServer {
+  const server = new McpServer({
+    name: 'mcp-app-template',
+    version: '1.0.0',
+  });
 
   const sessionLogger = logger.child({ sessionId });
 
-  const echoTool: Tool = {
-    name: 'echo',
-    description: "Echoes back the user's message in an interactive widget",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-          description: 'The message to echo back',
-        },
-      },
-      required: ['message'],
-    },
-    // MCP tool annotations help ChatGPT understand tool behavior:
-    // - readOnlyHint: If true, the tool does not modify its environment
-    // - destructiveHint: If true, the tool may perform destructive updates
-    // - idempotentHint: If true, repeated calls with same args have no additional effect
-    // - openWorldHint: If true, tool interacts with external entities (like the web or external systems)
-    // See: https://www.nickyt.co/blog/quick-fix-my-mcp-tools-were-showing-as-write-tools-in-chatgpt-dev-mode-3id9/
-    annotations: {
-      readOnlyHint: true,
-      openWorldHint: true,
-    },
-    _meta: {
-      'openai/outputTemplate': ECHO_WIDGET.uri,
-      'openai/widgetAccessible': true,
-      'openai/resultCanProduceWidget': true,
-    },
-  };
-
-  server.setRequestHandler(
-    ListToolsRequestSchema,
-    async (_request: ListToolsRequest) => {
-      sessionLogger.debug('Listing tools');
-      return {
-        tools: [echoTool],
-      };
-    }
+  const resourceUri = ECHO_WIDGET.uri;
+  const canRenderUiByCapability = Boolean(
+    getUiCapability(clientCapabilities)?.mimeTypes?.includes(RESOURCE_MIME_TYPE)
   );
 
-  server.setRequestHandler(
-    ListResourcesRequestSchema,
-    async (_request: ListResourcesRequest) => {
-      sessionLogger.debug('Listing resources');
-      return {
-        resources: [
-          {
-            uri: ECHO_WIDGET.uri,
-            name: ECHO_WIDGET.title,
-            description: 'Interactive widget for displaying echoed messages',
-            mimeType: 'text/html+skybridge',
-          },
-        ],
-      };
-    }
-  );
-
-  server.setRequestHandler(
-    ListResourceTemplatesRequestSchema,
-    async (_request: ListResourceTemplatesRequest) => {
-      sessionLogger.debug('Listing resource templates');
-      return {
-        resourceTemplates: [
-          {
-            uriTemplate: ECHO_WIDGET.uri,
-            name: ECHO_WIDGET.title,
-            description: 'Interactive widget for displaying echoed messages',
-            mimeType: 'text/html+skybridge',
-            _meta: {
-              'openai/outputTemplate': ECHO_WIDGET.uri,
-              'openai/widgetAccessible': true,
-              'openai/resultCanProduceWidget': true,
-            },
-          },
-        ],
-      };
-    }
-  );
-
-  server.setRequestHandler(
-    CallToolRequestSchema,
-    async (request: CallToolRequest): Promise<CallToolResult> => {
-      const { name, arguments: args } = request.params;
-
-      sessionLogger.info({ toolName: name, args }, 'Tool invoked');
-
-      if (name !== 'echo') {
-        const error = `Unknown tool: ${name}`;
-        sessionLogger.error({ toolName: name }, error);
-        throw new Error(error);
-      }
-
+  registerAppResource(
+    server,
+    resourceUri,
+    resourceUri,
+    { mimeType: RESOURCE_MIME_TYPE },
+    async () => {
+      sessionLogger.debug({ resourceUri }, 'Resource callback called');
+      const widgetId = resourceUri.replace('ui://', '');
       try {
-        const validatedInput = EchoToolInputSchema.parse(args || {});
+        const html = await readWidgetHtml(widgetId);
+        const devWidgetOrigin = `http://localhost:${WIDGET_PORT}`;
+        const devWidgetOriginAlt = `http://127.0.0.1:${WIDGET_PORT}`;
+        const baseUrlOrigin = new URL(BASE_URL || devWidgetOrigin).origin;
 
-        const output = {
-          echoedMessage: validatedInput.message,
-          timestamp: new Date().toISOString(),
-        } satisfies EchoToolOutput;
+        const resourceDomains: string[] = INLINE_DEV_MODE
+          ? []
+          : [baseUrlOrigin];
+        const connectDomains: string[] = [];
 
-        sessionLogger.info({ output }, 'Tool execution successful');
+        if (NODE_ENV === 'development' && !INLINE_DEV_MODE) {
+          resourceDomains.push(devWidgetOrigin, devWidgetOriginAlt);
+          connectDomains.push(
+            devWidgetOrigin,
+            devWidgetOriginAlt,
+            devWidgetOrigin.replace('http://', 'ws://'),
+            devWidgetOriginAlt.replace('http://', 'ws://')
+          );
+        }
+
+        if (INLINE_DEV_MODE) {
+          // Google Fonts — needed in inline dev mode where @fontsource local fonts
+          // can't load in sandboxed iframes. Remove if you self-host fonts.
+          resourceDomains.push(
+            'https://fonts.googleapis.com',
+            'https://fonts.gstatic.com'
+          );
+        }
+
+        const cspMeta =
+          resourceDomains.length > 0 || connectDomains.length > 0
+            ? {
+                ui: {
+                  csp: {
+                    resourceDomains: [...new Set(resourceDomains)],
+                    connectDomains: [...new Set(connectDomains)],
+                  },
+                },
+              }
+            : undefined;
+
+        sessionLogger.info(
+          { cspMeta },
+          'Constructed CSP meta for widget resource'
+        );
+        sessionLogger.info({ resourceUri, widgetId }, 'Widget resource loaded');
+
+        const finalHtml = INLINE_DEV_MODE
+          ? (inlinedHtmlCache.get(widgetId) ?? inlineWidgetAssets(html))
+          : html;
 
         return {
-          content: [
+          contents: [
             {
-              type: 'text',
-              text: `Echoing: "${validatedInput.message}"`,
+              uri: resourceUri,
+              mimeType: RESOURCE_MIME_TYPE,
+              text: finalHtml,
+              _meta: cspMeta,
             },
           ],
-          structuredContent: output,
-          _meta: {
-            outputTemplate: {
-              type: 'resource',
-              resource: {
-                uri: ECHO_WIDGET.uri,
-              },
-            },
-          },
         };
       } catch (err) {
-        sessionLogger.error({ err, toolName: name }, 'Tool execution failed');
+        sessionLogger.error(
+          { err, resourceUri, widgetId },
+          'Failed to load widget'
+        );
         throw err;
       }
     }
   );
 
-  server.setRequestHandler(
-    ReadResourceRequestSchema,
-    async (request: ReadResourceRequest) => {
-      const { uri } = request.params;
-
-      sessionLogger.debug({ uri }, 'Reading resource');
-
-      if (uri.startsWith('ui://')) {
-        const widgetId = uri.replace('ui://', '');
-
-        if (widgetId === ECHO_WIDGET.id) {
-          try {
-            const html = await readWidgetHtml(widgetId);
-
-            sessionLogger.info({ uri, widgetId }, 'Widget resource loaded');
-
-            return {
-              contents: [
-                {
-                  uri,
-                  mimeType: 'text/html+skybridge', // CRITICAL for ChatGPT widget runtime
-                  text: html,
-                },
-              ],
-            };
-          } catch (err) {
-            sessionLogger.error(
-              { err, uri, widgetId },
-              'Failed to load widget'
-            );
-            throw err;
+  registerAppTool(
+    server,
+    'echo',
+    {
+      title: 'Echo',
+      description: "Echoes back the user's message in an interactive view",
+      inputSchema: EchoToolInputSchema.shape,
+      _meta: canRenderUiByCapability
+        ? {
+            ui: {
+              resourceUri,
+            },
           }
-        }
-      }
+        : {},
+    },
+    async (args) => {
+      sessionLogger.info(
+        { toolName: 'echo', args, canRenderUiByCapability },
+        'Tool invoked'
+      );
 
-      const error = `Unknown resource: ${uri}`;
-      sessionLogger.error({ uri }, error);
-      throw new Error(error);
+      try {
+        const result = EchoToolInputSchema.safeParse(args);
+
+        if (!result.success) {
+          sessionLogger.error(
+            { err: result.error, toolName: 'echo' },
+            'Validation failed'
+          );
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error: ${result.error.issues.map((e) => e.message).join(', ')}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const { message } = result.data;
+
+        const output = {
+          echoedMessage: message,
+          timestamp: new Date().toISOString(),
+        } satisfies EchoToolOutput;
+
+        sessionLogger.info({ output }, 'Tool execution successful');
+
+        if (!canRenderUiByCapability) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Echoing: "${message}"`,
+              },
+            ],
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Echoing: "${message}"`,
+            },
+          ],
+          structuredContent: output,
+        };
+      } catch (err) {
+        sessionLogger.error({ err, toolName: 'echo' }, 'Tool execution failed');
+        throw err;
+      }
     }
   );
 
@@ -335,9 +426,33 @@ async function main() {
       logLevel: LOG_LEVEL,
       assetsDir: ASSETS_DIR,
       baseUrl: BASE_URL,
+      inlineDevMode: INLINE_DEV_MODE,
     },
-    'Starting ChatGPT App Template server'
+    'Starting MCP App Template server'
   );
+
+  const widgetIds = [ECHO_WIDGET.id];
+
+  if (INLINE_DEV_MODE) {
+    preInlineWidgets(widgetIds);
+
+    // Watch for rebuilds from widget watch mode
+    if (fs.existsSync(ASSETS_DIR)) {
+      fs.watch(ASSETS_DIR, (eventType, filename) => {
+        if (filename?.endsWith('.html')) {
+          const widgetId = filename.replace('.html', '');
+          if (widgetIds.includes(widgetId)) {
+            logger.info({ widgetId, eventType }, 'Asset changed, re-inlining');
+            const html = buildInlinedHtml(widgetId);
+            if (html) {
+              inlinedHtmlCache.set(widgetId, html);
+            }
+          }
+        }
+      });
+      logger.info('Watching assets directory for rebuild changes');
+    }
+  }
 
   const app = express();
 
@@ -405,7 +520,10 @@ async function main() {
         };
 
         const tempSessionId = 'initializing';
-        const server = createMcpServer(tempSessionId);
+        const clientCapabilities = req.body.params.capabilities as
+          | (ClientCapabilities & { extensions?: Record<string, unknown> })
+          | undefined;
+        const server = createMcpServer(tempSessionId, clientCapabilities);
         await server.connect(transport);
 
         await transport.handleRequest(req, res, req.body);

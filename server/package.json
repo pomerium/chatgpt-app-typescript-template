@@ -1,7 +1,7 @@
 {
   "name": "chatgpt-app-server",
   "version": "1.0.0",
-  "description": "MCP server for ChatGPT app template",
+  "description": "MCP server for MCP Apps template",
   "type": "module",
   "main": "dist/server.js",
   "exports": {
@@ -17,13 +17,14 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^1.2.2",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "pino": "^10.1.0",
     "pino-http": "^11.0.0",
     "uuid": "^13.0.0",
-    "zod": "^4.2.1"
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

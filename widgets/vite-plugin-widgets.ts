@@ -136,10 +136,13 @@ export function widgetDiscoveryPlugin(): Plugin {
           throw new Error(`Widget not found: ${widgetName}`);
         }
 
+        const isDev = config?.command === 'serve';
         const toFs = (abs: string) => '/@fs/' + abs.replace(/\\/g, '/');
-        const widgetPath = toFs(widget.path);
-
-        const isDev = config.command === 'serve';
+        const toRelative = (abs: string) => {
+          const rel = path.relative(process.cwd(), abs).replace(/\\/g, '/');
+          return rel.startsWith('.') ? rel : `./${rel}`;
+        };
+        const widgetPath = isDev ? toFs(widget.path) : toRelative(widget.path);
 
         return {
           code: isDev

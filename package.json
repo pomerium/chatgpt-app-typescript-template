@@ -1,7 +1,7 @@
 {
   "name": "chatgpt-app-typescript-template",
   "version": "1.0.0",
-  "description": "Minimal, production-ready ChatGPT app template using OpenAI Apps SDK",
+  "description": "Minimal, production-ready MCP Apps template with React widgets",
   "type": "module",
   "private": true,
   "workspaces": [
@@ -10,8 +10,10 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:widgets\"",
+    "dev:inline": "INLINE_DEV_MODE=true concurrently \"npm run dev:server\" \"npm run dev:widgets:inline\"",
     "dev:server": "npm run dev --workspace=server",
     "dev:widgets": "npm run dev --workspace=widgets",
+    "dev:widgets:inline": "npm run build:watch --workspace=widgets",
     "start": "concurrently \"npm run start:server\" \"npm run start:widgets\"",
     "start:server": "npm run start --workspace=server",
     "start:widgets": "npm run serve --workspace=widgets",
@@ -29,10 +31,9 @@
     "type-check": "tsc --noEmit --project server && tsc --noEmit --project widgets"
   },
   "keywords": [
-    "chatgpt",
-    "openai",
-    "apps-sdk",
     "mcp",
+    "mcp-apps",
+    "apps",
     "template",
     "react",
     "typescript"
@@ -60,6 +61,13 @@
   },
   "dependencies": {
     "@eslint/js": "^9.39.2",
-    "globals": "^16.5.0"
+    "globals": "^16.5.0",
+    "zod": "^4.1.13"
+  },
+  "overrides": {
+    "zod": "^4.1.13"
+  },
+  "resolutions": {
+    "zod": "^4.1.13"
   }
 }
