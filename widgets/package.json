@@ -43,7 +43,7 @@
     "chatgpt-app-server": "*",
     "jsdom": "^27.4.0",
     "serve": "^14.2.5",
-    "storybook": "^10.1.10",
+    "storybook": "^10.2.10",
     "tailwindcss": "^4.1.18",
     "vite": "^7.3.0",
     "vitest": "^4.0.16"
