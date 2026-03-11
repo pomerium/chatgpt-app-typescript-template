@@ -263,38 +263,46 @@ function createMcpServer(
         const html = await readWidgetHtml(widgetId);
         const devWidgetOrigin = `http://localhost:${WIDGET_PORT}`;
         const devWidgetOriginAlt = `http://127.0.0.1:${WIDGET_PORT}`;
+        const baseUrlOrigin = new URL(BASE_URL || devWidgetOrigin).origin;
+
+        const resourceDomains: string[] = [baseUrlOrigin];
+        const connectDomains: string[] = [];
+
+        if (NODE_ENV === 'development' && !INLINE_DEV_MODE) {
+          resourceDomains.push(devWidgetOrigin, devWidgetOriginAlt);
+          connectDomains.push(
+            devWidgetOrigin,
+            devWidgetOriginAlt,
+            devWidgetOrigin.replace('http://', 'ws://'),
+            devWidgetOriginAlt.replace('http://', 'ws://')
+          );
+        }
+
+        if (INLINE_DEV_MODE) {
+          // Google Fonts — needed in inline dev mode where @fontsource local fonts
+          // can't load in sandboxed iframes. Remove if you self-host fonts.
+          resourceDomains.push(
+            'https://fonts.googleapis.com',
+            'https://fonts.gstatic.com'
+          );
+        }
+
         const cspMeta =
-          NODE_ENV === 'development'
+          resourceDomains.length > 0 || connectDomains.length > 0
             ? {
                 ui: {
                   csp: {
-                    resourceDomains: [
-                      ...(!INLINE_DEV_MODE
-                        ? [devWidgetOrigin, devWidgetOriginAlt]
-                        : []),
-                      // Google Fonts — needed in inline dev mode where @fontsource local fonts
-                      // can't load in sandboxed iframes. Remove if you self-host fonts.
-                      ...(INLINE_DEV_MODE
-                        ? [
-                            'https://fonts.googleapis.com',
-                            'https://fonts.gstatic.com',
-                          ]
-                        : []),
-                      // Add any other resource domains your widget needs to load assets
-                    ],
-                    connectDomains: !INLINE_DEV_MODE
-                      ? [
-                          devWidgetOrigin,
-                          devWidgetOriginAlt,
-                          devWidgetOrigin.replace('http://', 'ws://'),
-                          devWidgetOriginAlt.replace('http://', 'ws://'),
-                        ]
-                      : [],
+                    resourceDomains: [...new Set(resourceDomains)],
+                    connectDomains: [...new Set(connectDomains)],
                   },
                 },
               }
             : undefined;
 
+        sessionLogger.info(
+          { cspMeta },
+          'Constructed CSP meta for widget resource'
+        );
         sessionLogger.info({ resourceUri, widgetId }, 'Widget resource loaded');
 
         const finalHtml = INLINE_DEV_MODE
