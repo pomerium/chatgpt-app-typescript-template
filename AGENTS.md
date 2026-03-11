@@ -255,11 +255,13 @@ Hosts provide `containerDimensions` (`maxHeight`, `maxWidth`, `height`, `width`)
 
 The server inspects client capabilities during session initialization via `getUiCapability()` from `@modelcontextprotocol/ext-apps/server`. UI-capable hosts get `_meta.ui.resourceUri` on tools and `structuredContent` in responses. Text-only hosts get plain text responses with no UI metadata. This is handled automatically in `createMcpServer()`.
 
-### Inline Widget Assets
+### Claude.ai Local Development (`CLAUDE_DEV_MODE`)
 
-Set `INLINE_WIDGET_ASSETS=true` for hosts (e.g. Claude.ai) that require self-contained HTML. The server reads built JS/CSS from `assets/` and inlines them as `<script>`/`<style>` blocks, removing external references and preload hints. See `inlineWidgetAssets()` in `server/src/server.ts`.
+Claude.ai's sandboxed iframes cannot reach `localhost`, so `CLAUDE_DEV_MODE=true` inlines JS/CSS directly into widget HTML as `<script>`/`<style>` blocks. Use `npm run dev:claude` which sets this automatically and runs the widget build in watch mode.
 
-For local development with Claude.ai, use `npm run dev:claude` which sets `INLINE_WIDGET_ASSETS=true` and runs the widget build in watch mode so file changes are automatically rebuilt.
+**Font limitation:** Claude.ai's Content Security Policy restricts `font-src` to `'self'` and `https://assets.claude.ai`, which blocks custom fonts loaded via data URIs, CDNs, or any external source. Custom `@font-face` declarations will fail silently and the system font fallback stack (`system-ui`, `monospace`) will be used instead.
+
+This mode is not needed in production — once deployed to a public URL, hosts fetch widget assets (JS, CSS, fonts) directly via normal URLs.
 
 ### Mock App for Testing & Storybook
 
@@ -388,7 +390,7 @@ LOG_LEVEL=info                 # Pino log level: fatal, error, warn, info, debug
 SESSION_MAX_AGE=3600000        # Session cleanup threshold (1 hour in ms)
 CORS_ORIGIN=*                  # CORS origin (set to domain in production)
 BASE_URL=                      # Optional CDN URL for widget assets
-INLINE_WIDGET_ASSETS=true      # Inline JS/CSS into HTML for sandboxed hosts (e.g. Claude.ai)
+CLAUDE_DEV_MODE=true      # Local dev only: inline JS/CSS for Claude.ai (set by npm run dev:claude)
 ```
 
 Requirements:
@@ -499,7 +501,7 @@ docker-compose -f docker/docker-compose.yml up -d
 - Widget components accept an `app` prop typed as `AppLike<T>` so the real `App` or `createMockApp()` can be injected
 - Use `containerDimensions.maxHeight` (not viewport height) for responsive widget sizing
 - When adding new App API calls (`openLink`, `sendMessage`, `updateModelContext`), add the method signature to `AppLike` in `widgets/src/types/mcp-app.ts` and the mock in `widgets/src/mocks/mock-app.ts`
-- Use `npm run dev:claude` for local development with Claude.ai (sets `INLINE_WIDGET_ASSETS=true` with watch rebuild)
+- Use `npm run dev:claude` for local development with Claude.ai (sets `CLAUDE_DEV_MODE=true` with watch rebuild)
 - Widget build is separate from server build - always run `npm run build:widgets` when modifying widgets
 - The `text/html;profile=mcp-app` MIME type is non-negotiable for MCP Apps UI loading
 - Session cleanup runs automatically but sessions are isolated - each HttpStreamable connection gets its own MCP server instance

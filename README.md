@@ -586,15 +586,11 @@ Some hosts (e.g. Claude.ai) require fully self-contained HTML — external `<scr
 npm run dev:claude
 ```
 
-This sets `INLINE_WIDGET_ASSETS=true` automatically and runs the widget build in watch mode — so file changes are rebuilt into `assets/` and the server serves updated inlined HTML on the next tool call. No manual rebuild step needed.
+This sets `CLAUDE_DEV_MODE=true` automatically and runs the widget build in watch mode — so file changes are rebuilt into `assets/` and the server serves updated inlined HTML on the next tool call. No manual rebuild step needed.
 
-**For production**, set the environment variable:
+When enabled, the server reads the built JS and CSS files from `assets/` and inlines them directly into the HTML as `<script>` and `<style>` blocks, removing any `<link rel="modulepreload">` or `<link rel="preload">` hints. This produces a single self-contained HTML document that works in Claude.ai's sandboxed iframe.
 
-```bash
-INLINE_WIDGET_ASSETS=true
-```
-
-When enabled, the server reads the built JS and CSS files from `assets/` and inlines them directly into the HTML as `<script>` and `<style>` blocks, removing any `<link rel="modulepreload">` or `<link rel="preload">` hints. This produces a single self-contained HTML document that works in any host.
+> **Note:** Custom fonts won't load in Claude.ai due to its Content Security Policy (`font-src 'self' https://assets.claude.ai`). The system font fallback stack (`system-ui`, `monospace`) is used instead. This is not needed in production — once deployed to a public URL, hosts fetch assets directly via normal URLs.
 
 ### Mock App for Testing & Storybook
 
@@ -690,8 +686,8 @@ CORS_ORIGIN=*
 # Asset Base URL (for CDN)
 # BASE_URL=https://cdn.example.com/assets
 
-# Inline widget assets into HTML (for hosts like Claude.ai)
-# INLINE_WIDGET_ASSETS=true
+# Local dev only: inline JS/CSS for Claude.ai (set by npm run dev:claude)
+# CLAUDE_DEV_MODE=true
 ```
 
 ### Critical Configuration Notes

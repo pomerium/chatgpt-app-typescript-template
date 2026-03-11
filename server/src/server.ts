@@ -38,7 +38,7 @@ const SESSION_MAX_AGE = Number(process.env.SESSION_MAX_AGE || '3600000');
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 const WIDGET_PORT = Number(process.env.WIDGET_PORT || '4444');
 const { BASE_URL = '' } = process.env;
-const INLINE_WIDGET_ASSETS = process.env.INLINE_WIDGET_ASSETS === 'true';
+const CLAUDE_DEV_MODE = process.env.CLAUDE_DEV_MODE === 'true';
 
 const logger = pino({
   level: LOG_LEVEL,
@@ -61,7 +61,7 @@ const ECHO_WIDGET: WidgetDescriptor = {
   uri: 'ui://echo',
 };
 
-/** Pre-inlined widget HTML cache — populated at startup when INLINE_WIDGET_ASSETS is true */
+/** Pre-inlined widget HTML cache — populated at startup when CLAUDE_DEV_MODE is true */
 const inlinedHtmlCache = new Map<string, string>();
 
 function buildInlinedHtml(widgetId: string): string | null {
@@ -92,7 +92,7 @@ function preInlineWidgets(widgetIds: string[]) {
  * Read widget HTML - from Vite dev server in development, from assets in production
  */
 async function readWidgetHtml(widgetId: string): Promise<string> {
-  if (NODE_ENV === 'development' && !INLINE_WIDGET_ASSETS) {
+  if (NODE_ENV === 'development' && !CLAUDE_DEV_MODE) {
     try {
       const url = `http://localhost:${WIDGET_PORT}/${widgetId}.html`;
       logger.debug({ url }, 'Fetching widget HTML from Vite dev server');
@@ -232,7 +232,7 @@ function createMcpServer(
         const devWidgetOrigin = `http://localhost:${WIDGET_PORT}`;
         const devWidgetOriginAlt = `http://127.0.0.1:${WIDGET_PORT}`;
         const devCspMeta =
-          NODE_ENV === 'development' && !INLINE_WIDGET_ASSETS
+          NODE_ENV === 'development' && !CLAUDE_DEV_MODE
             ? {
                 ui: {
                   csp: {
@@ -250,7 +250,7 @@ function createMcpServer(
 
         sessionLogger.info({ resourceUri, widgetId }, 'Widget resource loaded');
 
-        const finalHtml = INLINE_WIDGET_ASSETS
+        const finalHtml = CLAUDE_DEV_MODE
           ? (inlinedHtmlCache.get(widgetId) ?? inlineWidgetAssets(html))
           : html;
 
@@ -369,14 +369,14 @@ async function main() {
       logLevel: LOG_LEVEL,
       assetsDir: ASSETS_DIR,
       baseUrl: BASE_URL,
-      inlineWidgetAssets: INLINE_WIDGET_ASSETS,
+      inlineWidgetAssets: CLAUDE_DEV_MODE,
     },
     'Starting MCP App Template server'
   );
 
   const widgetIds = [ECHO_WIDGET.id];
 
-  if (INLINE_WIDGET_ASSETS) {
+  if (CLAUDE_DEV_MODE) {
     preInlineWidgets(widgetIds);
 
     // Watch for rebuilds from widget watch mode
