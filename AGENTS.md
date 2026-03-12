@@ -408,7 +408,7 @@ INLINE_DEV_MODE=true      # Local dev only: inline JS/CSS + images, fonts via Go
 
 Requirements:
 
-- Node.js 22+ with npm 10+ (consider `corepack enable` to pin versions in CI)
+- Node.js 24+ with npm 11+ (consider `corepack enable` to pin versions in CI)
 - When tunneling or redeploying, check `/health` and rerun `npm run inspect` to ensure the MCP manifest is current
 
 ## Common Troubleshooting
@@ -518,5 +518,5 @@ docker-compose -f docker/docker-compose.yml up -d
 - Widget build is separate from server build - always run `npm run build:widgets` when modifying widgets
 - The `text/html;profile=mcp-app` MIME type is non-negotiable for MCP Apps UI loading
 - Session cleanup runs automatically but sessions are isolated - each HttpStreamable connection gets its own MCP server instance
-- Node.js 22+ is required for ES2023 features and native type stripping
+- Node.js 24+ is required for ES2023 features and native type stripping
 - Use `npm run inspect` for rapid local testing before connecting to hosts
