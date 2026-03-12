@@ -18,6 +18,7 @@
     "start:server": "npm run start --workspace=server",
     "start:widgets": "npm run serve --workspace=widgets",
     "storybook": "npm run storybook --workspace=widgets",
+    "build-storybook": "npm run build-storybook --workspace=widgets",
     "inspect": "npx @mcpjam/inspector@latest --config mcp-inspector.json",
     "build": "npm run build:widgets && npm run build:server",
     "build:server": "npm run build --workspace=server",
