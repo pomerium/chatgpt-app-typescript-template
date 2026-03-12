@@ -48,9 +48,9 @@ graph TD
 
 ### Prerequisites
 
-- **[Node.js](https://nodejs.org/) 22+** (required for ES2023 support)
-  - Verify: `node -v` (should show v22.0.0 or higher)
-- **npm 10+** (ships with Node 22)
+- **[Node.js](https://nodejs.org/) 24+** (required for ES2023 support and native type stripping)
+  - Verify: `node -v` (should show v24.0.0 or higher)
+- **npm 11+** (ships with Node 24)
   - Verify: `npm -v` (should show v10.0.0 or higher)
 
 **Supported platforms:** macOS, Linux, Windows (via WSL2)
@@ -967,7 +967,7 @@ curl http://localhost:8080/health
 1. Clear node_modules: `rm -rf node_modules && npm install`
 2. Check for TypeScript errors: `npm run type-check`
 3. Verify all dependencies installed
-4. Check Node.js version: `node -v` (should be 22+)
+4. Check Node.js version: `node -v` (should be 24+)
 
 ### Port Already in Use
 
@@ -988,7 +988,7 @@ The template uses `McpServer` from `@modelcontextprotocol/sdk/server/mcp.js` tog
 - Tool UI binding is declared with `_meta.ui.resourceUri` in one place
 - The pattern is portable across MCP Apps hosts (ChatGPT, VS Code, Claude, Goose)
 
-### Why Node.js 22 + ES2023?
+### Why Node.js 24 + ES2023?
 
 - Native type stripping support
 - Immutable array methods (`.toSorted()`, `.toReversed()`)

@@ -1,11 +1,11 @@
 # Multi-stage build for ChatGPT App Template
 # Using slim instead of alpine for better compatibility with native dependencies
-# Node.js 22+ required for ES2023 support and native type stripping
+# Node.js 24+ required for ES2023 support and native type stripping
 
 # ============================================
 # Stage 1: Builder - Build both widgets and server
 # ============================================
-FROM node:22-slim AS builder
+FROM node:24-slim AS builder
 
 # Install build tools needed for native dependencies and Vite
 RUN apt-get update && \
@@ -37,7 +37,7 @@ RUN npm run build:server
 # ============================================
 # Stage 2: Production - Minimal runtime image
 # ============================================
-FROM node:22-slim AS production
+FROM node:24-slim AS production
 
 WORKDIR /app
 
