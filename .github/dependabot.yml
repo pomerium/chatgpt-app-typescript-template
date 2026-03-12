@@ -1,0 +1,15 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      storybook:
+        patterns:
+          - "storybook"
+          - "@storybook/*"
+      npm_and_yarn:
+        exclude-patterns:
+          - "storybook"
+          - "@storybook/*"
