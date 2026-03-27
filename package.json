@@ -42,13 +42,12 @@
   "author": "",
   "license": "Apache-2.0",
   "devDependencies": {
+    "@eslint-react/eslint-plugin": "^3.0.0",
     "@typescript-eslint/eslint-plugin": "^8.57.2",
     "@typescript-eslint/parser": "^8.50.1",
     "concurrently": "^9.2.1",
     "eslint": "^10.1.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
     "fast-glob": "^3.3.3",
     "p-limit": "^7.3.0",
     "prettier": "^3.8.1",
@@ -68,20 +67,12 @@
   "overrides": {
     "zod": "^4.1.13",
     "@typescript-eslint/eslint-plugin": {
-      "typescript": "$typescript",
-      "eslint": "$eslint"
+      "typescript": "$typescript"
     },
     "@typescript-eslint/parser": {
-      "typescript": "$typescript",
-      "eslint": "$eslint"
+      "typescript": "$typescript"
     },
     "eslint-plugin-jsx-a11y": {
-      "eslint": "$eslint"
-    },
-    "eslint-plugin-react": {
-      "eslint": "$eslint"
-    },
-    "eslint-plugin-react-hooks": {
       "eslint": "$eslint"
     }
   },
