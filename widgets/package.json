@@ -16,11 +16,11 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@modelcontextprotocol/ext-apps": "^1.2.2",
+    "@modelcontextprotocol/ext-apps": "^1.5.0",
     "@radix-ui/react-slot": "^1.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.0.1",
+    "lucide-react": "^1.7.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "tailwind-merge": "^3.5.0",
@@ -40,11 +40,11 @@
     "@vitejs/plugin-react": "^6.0.1",
     "@vitest/coverage-v8": "^4.1.1",
     "chatgpt-app-server": "*",
-    "jsdom": "^29.0.1",
+    "jsdom": "^29.0.2",
     "serve": "^14.2.6",
     "storybook": "^10.2.10",
     "tailwindcss": "^4.1.18",
-    "vite": "^8.0.5",
-    "vitest": "^4.1.1"
+    "vite": "^8.0.6",
+    "vitest": "^4.1.3"
   }
 }
