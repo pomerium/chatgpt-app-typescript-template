@@ -17,9 +17,9 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@modelcontextprotocol/ext-apps": "^1.2.2",
+    "@modelcontextprotocol/ext-apps": "^1.5.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
-    "dotenv": "^17.3.1",
+    "dotenv": "^17.4.1",
     "express": "^5.2.1",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
@@ -28,8 +28,8 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
-    "@types/node": "^25.5.0",
+    "@types/node": "^25.5.2",
     "pino-pretty": "^13.1.3",
-    "vitest": "^4.1.1"
+    "vitest": "^4.1.3"
   }
 }
