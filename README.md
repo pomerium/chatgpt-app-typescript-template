@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/pomerium-chatgpt-app-typescript-template-badge.png)](https://mseep.ai/app/pomerium-chatgpt-app-typescript-template)
+
 # MCP Apps Template
 
 A well-architected starter template demonstrating best practices for building MCP Apps using the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) with [React](https://react.dev/) widgets. It leverages TypeScript, Tailwind CSS v4, Pino logging, Storybook, and Vitest for a robust development experience.
