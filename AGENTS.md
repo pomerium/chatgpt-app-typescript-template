@@ -438,7 +438,11 @@ Requirements:
 
 ## Commit & Pull Request Guidelines
 
-- Use concise, imperative subjects (example: `initial commit`); stay under 72 characters and add optional detail in the body
+- Use [Conventional Commits](https://www.conventionalcommits.org/) format: `<type>(<scope>): <subject>`
+- Common types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `style`, `perf`
+- Scope is optional but helpful (e.g. `feat(widgets):`, `fix(server):`, `chore(deps):`)
+- Subject should be concise and imperative; stay under 72 characters
+- Add optional detail in the commit body when the why isn't obvious from the subject
 - Reference issues, note manual test commands, and attach UI screenshots or terminal logs when widgets or tooling shift
 - In pull requests, describe the user impact, flag risks, and mention follow-up tasks so reviewers can confirm MCP behavior quickly
 
