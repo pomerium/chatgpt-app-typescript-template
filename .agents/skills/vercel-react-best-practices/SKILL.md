@@ -1,6 +1,6 @@
 ---
 name: vercel-react-best-practices
-description: React and Next.js performance optimization guidelines from Vercel Engineering. This skill should be used when writing, reviewing, or refactoring React/Next.js code to ensure optimal performance patterns. Triggers on tasks involving React components, Next.js pages, data fetching, bundle optimization, or performance improvements.
+description: "React and Next.js performance optimization guidelines from Vercel Engineering. Parallelizes async waterfalls with Promise.all(), eliminates barrel file imports, applies next/dynamic code splitting, and audits re-render patterns. Use when fixing slow page loads, reducing bundle size, optimizing React re-renders, eliminating fetch waterfalls, or reviewing Next.js data fetching performance."
 license: MIT
 metadata:
   author: vercel
@@ -9,16 +9,47 @@ metadata:
 
 # Vercel React Best Practices
 
-Comprehensive performance optimization guide for React and Next.js applications, maintained by Vercel. Contains 45 rules across 8 categories, prioritized by impact to guide automated refactoring and code generation.
+45 performance rules across 8 categories from Vercel Engineering, prioritized by impact. Covers async waterfalls, bundle size, server-side caching, client fetching, re-renders, rendering, JS micro-optimizations, and advanced patterns.
 
-## When to Apply
+## Audit Workflow
 
-Reference these guidelines when:
-- Writing new React components or Next.js pages
-- Implementing data fetching (client or server-side)
-- Reviewing code for performance issues
-- Refactoring existing React/Next.js code
-- Optimizing bundle size or load times
+1. **Check for waterfalls** — search for sequential `await` calls that could use `Promise.all()` (rules: `async-*`)
+2. **Audit imports** — find barrel file imports from icon/component libraries and replace with direct imports (rules: `bundle-*`)
+3. **Review server components** — verify `React.cache()` usage for repeated queries, minimize data serialized to client (rules: `server-*`)
+4. **Profile re-renders** — identify components subscribing to unnecessary state or missing memoization (rules: `rerender-*`)
+5. **Verify** — run `npm run build` and check bundle analyzer output for regressions. If bundle size increased, revisit steps 2-3 and re-audit imports
+
+## Critical Patterns (Inline Examples)
+
+### Parallelize independent async operations
+
+```typescript
+// Bad: sequential — 3 round trips
+const user = await fetchUser()
+const posts = await fetchPosts()
+const comments = await fetchComments()
+
+// Good: parallel — 1 round trip (2-10× faster)
+const [user, posts, comments] = await Promise.all([
+  fetchUser(), fetchPosts(), fetchComments()
+])
+```
+
+See `rules/async-parallel.md` for full details.
+
+### Eliminate barrel file imports
+
+```tsx
+// Bad: loads 1,583 modules (~2.8s in dev, 200-800ms cold start)
+import { Check, X, Menu } from 'lucide-react'
+
+// Good: loads only 3 modules (~2KB vs ~1MB)
+import Check from 'lucide-react/dist/esm/icons/check'
+import X from 'lucide-react/dist/esm/icons/x'
+import Menu from 'lucide-react/dist/esm/icons/menu'
+```
+
+See `rules/bundle-barrel-imports.md` for Next.js `optimizePackageImports` alternative.
 
 ## Rule Categories by Priority
 
@@ -104,22 +135,6 @@ Reference these guidelines when:
 - `advanced-event-handler-refs` - Store event handlers in refs
 - `advanced-use-latest` - useLatest for stable callback refs
 
-## How to Use
+## Detailed Rules
 
-Read individual rule files for detailed explanations and code examples:
-
-```
-rules/async-parallel.md
-rules/bundle-barrel-imports.md
-rules/_sections.md
-```
-
-Each rule file contains:
-- Brief explanation of why it matters
-- Incorrect code example with explanation
-- Correct code example with explanation
-- Additional context and references
-
-## Full Compiled Document
-
-For the complete guide with all rules expanded: `AGENTS.md`
+Each rule file in `rules/` contains: explanation, incorrect example, correct example, and references. For the complete compiled guide: `AGENTS.md`
